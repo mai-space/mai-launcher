@@ -66,6 +66,7 @@ data class SettingsState(
     val calendar: Boolean = true,
     val contacts: Boolean = true,
     val signalsShowText: Boolean = false,
+    val forecast: Boolean = true,
     val haptics: HapticLevel = HapticLevel.Light,
     val sounds: SoundLevel = SoundLevel.Off,
     val widgetCount: Int = 0,
@@ -80,6 +81,7 @@ class SettingsActions(
     val onArrangeDeck: () -> Unit = {},
     val onAddWidget: () -> Unit = {},
     val onToggleSignalText: () -> Unit = {},
+    val onForecast: () -> Unit = {},
     val onHaptics: () -> Unit = {},
     val onSounds: () -> Unit = {},
     val onHome: () -> Unit = {},
@@ -129,6 +131,8 @@ fun SettingsScreen(state: SettingsState, actions: SettingsActions, modifier: Mod
                         "+", actions.onAddWidget)
                     SettingRow(stringResource(R.string.settings_signal_text), stringResource(R.string.settings_signal_text_body),
                         onOff(state.signalsShowText), actions.onToggleSignalText, on = state.signalsShowText)
+                    SettingRow(stringResource(R.string.settings_forecast), stringResource(R.string.settings_forecast_body),
+                        onOff(state.forecast), actions.onForecast, on = state.forecast)
                 }
                 MaiPanel(stringResource(R.string.settings_feedback), Modifier.fillMaxWidth()) {
                     SettingRow(stringResource(R.string.settings_haptics), stringResource(R.string.settings_haptics_body),

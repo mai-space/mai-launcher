@@ -191,4 +191,39 @@
     <string name="settings_backup_exported">Layout gespeichert.</string>
     <string name="settings_backup_failed">Das hat nicht geklappt. Ist es eine Layout-Datei des Launchers?</string>
     <string name="settings_backup_imported">Importiert: %1$d Dock-Apps, %2$d Feeds, %3$d Widgets zum Hinzufügen.</string>
+    <string name="panel_forecast">Prognose</string>
+    <string name="forecast_meta">MAI-APPS</string>
+    <string name="forecast_budget">BUDGET · FREI PRO MONAT</string>
+    <string name="forecast_hidden">•••</string>
+    <string name="forecast_next">Nächstes: %1$s</string>
+    <string name="forecast_fitness">FITNESS · DIESE WOCHE</string>
+    <string name="forecast_running">Läuft: %1$s</string>
+    <string name="forecast_week_at_risk">WOCHENZIEL NICHT MEHR ERREICHBAR</string>
+    <string name="forecast_household">HAUSHALT · HEUTE FÄLLIG</string>
+    <string name="forecast_today">heute</string>
+    <string name="forecast_tomorrow">morgen</string>
+    <string name="forecast_this_month">diesen Monat</string>
+    <string name="forecast_next_month">nächsten Monat</string>
+    <string name="settings_forecast">Prognose aus den Mai-Apps</string>
+    <string name="settings_forecast_body">Budget, Fitness und Haushalt auf dem Deck. Nur auf diesem Handy gelesen, nie gespeichert.</string>
+    <plurals name="forecast_streak">
+        <item quantity="one">%d Woche in Folge</item>
+        <item quantity="other">%d Wochen in Folge</item>
+    </plurals>
+    <plurals name="forecast_shopping">
+        <item quantity="one">%d zu kaufen</item>
+        <item quantity="other">%d zu kaufen</item>
+    </plurals>
+    <plurals name="forecast_overdue">
+        <item quantity="one">%d ÜBERFÄLLIG</item>
+        <item quantity="other">%d ÜBERFÄLLIG</item>
+    </plurals>
+    <plurals name="forecast_in_days">
+        <item quantity="one">in %d Tag</item>
+        <item quantity="other">in %d Tagen</item>
+    </plurals>
+    <plurals name="forecast_in_months">
+        <item quantity="one">in %d Monat</item>
+        <item quantity="other">in %d Monaten</item>
+    </plurals>
 </resources>

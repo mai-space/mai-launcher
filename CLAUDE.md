@@ -25,6 +25,10 @@ Systemsprache. Paket `space.mai.mai_launcher`, CI-Artefakt `mai-launcher.apk`.
   sonst Systemdialog. Kein Audio, kein Text wird gespeichert.
 - **Signale:** Benachrichtigungs-Übersicht nur im Speicher (`SignalsHub`),
   nichts auf Platte; Text standardmäßig verborgen (`signals_show_text`).
+- **Prognose:** liest die Widget-Stände von Budget, Fitness und Haushalt über
+  deren `SummaryProvider` (`<paket>.summary`, Spalte `json`; die Apps geben
+  nur an `space.mai.*` mit gleicher Signatur heraus). Nur im Speicher, nie
+  gespeichert oder exportiert; abschaltbar (`mai_forecast`).
 - Keine echten Nutzerdaten ins Repo (Screenshots nur mit erfundenen Daten).
 
 ## Rückwärtskompatibilität (ab dem ersten verteilten Build Pflicht)
@@ -36,7 +40,7 @@ Systemsprache. Paket `space.mai.mai_launcher`, CI-Artefakt `mai-launcher.apk`.
   `mai_launcher_log_key` und Dateiname `launch_log.bin` nie ändern; neue
   Formate nur mit neuer Versionsnummer und Lesbarkeit der alten.
 - **Einstellungen** (`LauncherPrefs`, Schlüssel `dock_0..3`, `dest_home`, `dest_work`, `setup_dismissed`,
-  `widgets`, `feeds`, `mai_widgets_seen`, `comms_log`, `signals_show_text`, `feedback_haptics`, `feedback_sounds`) tolerant lesen,
+  `widgets`, `feeds`, `mai_widgets_seen`, `comms_log`, `signals_show_text`, `feedback_haptics`, `feedback_sounds`, `mai_forecast`) tolerant lesen,
   Schlüssel nie umbenennen.
 
 - **Layout-Sicherung** (`LayoutBackupCodec`, Kopf `mai-launcher-layout v1`,

@@ -86,6 +86,15 @@ class LauncherPrefs(context: Context) {
         _sounds.value = level
     }
 
+    private val _forecast = MutableStateFlow(prefs.getBoolean("mai_forecast", true))
+    /** Prognose aus den Mai-Apps auf dem Deck (Standard: an, erscheint nur mit Daten). */
+    val forecast: StateFlow<Boolean> = _forecast.asStateFlow()
+
+    fun setForecast(on: Boolean) {
+        prefs.edit { putBoolean("mai_forecast", on) }
+        _forecast.value = on
+    }
+
     companion object {
         const val DOCK_SLOTS = 4
     }

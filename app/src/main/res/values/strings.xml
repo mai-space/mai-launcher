@@ -193,4 +193,39 @@
     <string name="settings_backup_exported">Layout saved.</string>
     <string name="settings_backup_failed">That did not work. Is it a launcher layout file?</string>
     <string name="settings_backup_imported">Imported: %1$d dock apps, %2$d feeds, %3$d widgets to add.</string>
+    <string name="panel_forecast">Forecast</string>
+    <string name="forecast_meta">MAI APPS</string>
+    <string name="forecast_budget">BUDGET · FREE PER MONTH</string>
+    <string name="forecast_hidden">•••</string>
+    <string name="forecast_next">Next: %1$s</string>
+    <string name="forecast_fitness">FITNESS · THIS WEEK</string>
+    <string name="forecast_running">Running: %1$s</string>
+    <string name="forecast_week_at_risk">WEEK GOAL OUT OF REACH</string>
+    <string name="forecast_household">HOUSEHOLD · DUE TODAY</string>
+    <string name="forecast_today">today</string>
+    <string name="forecast_tomorrow">tomorrow</string>
+    <string name="forecast_this_month">this month</string>
+    <string name="forecast_next_month">next month</string>
+    <string name="settings_forecast">Forecast from Mai apps</string>
+    <string name="settings_forecast_body">Budget, fitness and household on the deck. Read on this phone only, never stored.</string>
+    <plurals name="forecast_streak">
+        <item quantity="one">%d-week streak</item>
+        <item quantity="other">%d-week streak</item>
+    </plurals>
+    <plurals name="forecast_shopping">
+        <item quantity="one">%d to buy</item>
+        <item quantity="other">%d to buy</item>
+    </plurals>
+    <plurals name="forecast_overdue">
+        <item quantity="one">%d OVERDUE</item>
+        <item quantity="other">%d OVERDUE</item>
+    </plurals>
+    <plurals name="forecast_in_days">
+        <item quantity="one">in %d day</item>
+        <item quantity="other">in %d days</item>
+    </plurals>
+    <plurals name="forecast_in_months">
+        <item quantity="one">in %d month</item>
+        <item quantity="other">in %d months</item>
+    </plurals>
 </resources>

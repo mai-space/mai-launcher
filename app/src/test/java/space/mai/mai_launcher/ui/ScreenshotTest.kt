@@ -40,6 +40,8 @@ import space.mai.mai_launcher.ui.index.IndexScreen
 import space.mai.mai_launcher.ui.index.IndexState
 import java.time.LocalDateTime
 import space.mai.mai_launcher.domain.HapticLevel
+import space.mai.mai_launcher.domain.ForecastLine
+import space.mai.mai_launcher.domain.MaiSummaryApps
 import space.mai.mai_launcher.domain.SoundLevel
 import space.mai.mai_launcher.ui.settings.BackupStatus
 import space.mai.mai_launcher.ui.settings.DockSlot
@@ -415,5 +417,33 @@ class ScreenshotTest {
             }
         }
         compose.onRoot().captureRoboImage("../project-docs/screenshots/15_settings.png")
+    }
+
+    @Test fun deckForecast() {
+        val fit = AppInfo(AppKey(MaiSummaryApps.FITNESS, "Main"), "Fitness")
+        val bud = AppInfo(AppKey(MaiSummaryApps.BUDGET, "Main"), "Budget")
+        val hh = AppInfo(AppKey(MaiSummaryApps.HOUSEHOLD, "Main"), "Haushalt")
+        compose.setContent {
+            Frame {
+                DeckScreen(
+                    DeckState(
+                        system = system,
+                        dock = listOf(tile("Phone"), tile("Messages"), tile("Camera"), tile("Browser")),
+                        likely = listOf(tile("Music"), tile("Calendar"), tile("Ruf durch"), tile("Notes")),
+                        likelyWindow = 20 to 22,
+                        appCount = apps.size,
+                        zone = zone,
+                        forecast = listOf(
+                            ForecastLine.Budget("340 €", false, "Car insurance", "420 €", 2),
+                            ForecastLine.Fitness(2, 3, 4, "Push day", 1, false),
+                            ForecastLine.Household(2, 1, "Water plants", "Paper", 1, 7),
+                        ),
+                        forecastApps = listOf(bud, fit, hh).associate { it.key.packageName to AppTile(it.key, it.label) },
+                    ),
+                    DeckActions(),
+                )
+            }
+        }
+        compose.onRoot().captureRoboImage("../project-docs/screenshots/16_deck_forecast.png")
     }
 }

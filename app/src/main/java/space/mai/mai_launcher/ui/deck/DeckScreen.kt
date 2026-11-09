@@ -60,6 +60,8 @@ import space.mai.mai_launcher.system.SystemState
 import space.mai.mai_launcher.ui.AppTile
 import space.mai.mai_launcher.ui.AppToken
 import space.mai.mai_launcher.domain.SignalDigest
+import space.mai.mai_launcher.domain.Forecast
+import space.mai.mai_launcher.domain.ForecastLine
 import space.mai.mai_launcher.domain.SignalGroup
 import java.time.Instant
 import java.time.ZoneId
@@ -96,6 +98,9 @@ data class DeckState(
     val signalsShowText: Boolean = false,
     /** Zähler je Paket für das Dock. */
     val badges: Map<String, Int> = emptyMap(),
+    /** Prognose aus den Mai-Apps (leer = Panel aus). */
+    val forecast: List<ForecastLine> = emptyList(),
+    val forecastApps: Map<String, AppTile> = emptyMap(),
 )
 
 /** Aktionen des Decks. */
@@ -193,6 +198,10 @@ fun DeckScreen(state: DeckState, actions: DeckActions, modifier: Modifier = Modi
                 }
                 state.events?.let {
                     EventsPanel(it, state.system.nowMillis, state.zone, state.use24h, actions.onEvent, actions.onCalendar)
+                }
+                if (state.forecast.isNotEmpty()) {
+                    val today = Instant.ofEpochMilli(state.system.nowMillis).atZone(state.zone).toLocalDate()
+                    ForecastPanel(state.forecast, state.forecastApps, Forecast.daysLeftInWeek(today), actions.onApp)
                 }
                 if (state.editMode || state.destinations.any { it.isNotBlank() }) {
                     DestinationsPanel(state.destinations, state.editMode, actions.onDestination, actions.onSetDestination)
