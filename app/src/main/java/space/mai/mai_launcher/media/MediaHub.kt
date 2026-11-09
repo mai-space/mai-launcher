@@ -32,12 +32,17 @@ class MediaHub(private val context: Context) {
     private val _art = MutableStateFlow<Bitmap?>(null)
     val art: StateFlow<Bitmap?> = _art.asStateFlow()
 
+    /** Als Nächstes (nur wenn die App ihre Warteschlange teilt), höchstens fünf Titel. */
+    private val _queue = MutableStateFlow<List<String>>(emptyList())
+    val queue: StateFlow<List<String>> = _queue.asStateFlow()
+
     private var controller: MediaController? = null
     private var started = false
 
     private val controllerCallback = object : MediaController.Callback() {
         override fun onPlaybackStateChanged(state: PlaybackState?) = publish()
         override fun onMetadataChanged(metadata: MediaMetadata?) = publish()
+        override fun onQueueChanged(queue: MutableList<android.media.session.MediaSession.QueueItem>?) = publish()
         override fun onSessionDestroyed() = pick(currentSessions())
     }
 
@@ -87,8 +92,15 @@ class MediaHub(private val context: Context) {
         if (c == null || meta == null || title.isNullOrBlank()) {
             _nowPlaying.value = null
             _art.value = null
+            _queue.value = emptyList()
             return
         }
+        _queue.value = runCatching {
+            val q = c.queue.orEmpty()
+            val active = c.playbackState?.activeQueueItemId
+            val i = q.indexOfFirst { it.queueId == active }
+            q.drop(if (i >= 0) i + 1 else 0).mapNotNull { it.description.title?.toString() }.take(5)
+        }.getOrDefault(emptyList())
         val state = c.playbackState
         val duration = meta.getLong(MediaMetadata.METADATA_KEY_DURATION).takeIf { it > 0 }
         _nowPlaying.value = NowPlaying(
@@ -118,6 +130,15 @@ class MediaHub(private val context: Context) {
     }
 
     fun next() { controller?.transportControls?.skipToNext() }
+
+    fun seekTo(ms: Long) { controller?.transportControls?.seekTo(ms.coerceAtLeast(0)) }
+
+    /** Lautstärke/Ausgabe: System-Panel (Ausgabegerät wählt Android dort). */
+    fun openOutput() {
+        val panel = android.content.Intent(android.provider.Settings.Panel.ACTION_VOLUME)
+            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        runCatching { context.startActivity(panel) }
+    }
     fun previous() { controller?.transportControls?.skipToPrevious() }
 
     /** Öffnet die spielende App (ihre Session-Activity, sonst ihren Start-Eintrag). */

@@ -57,6 +57,8 @@ import space.mai.mai_launcher.domain.NowPlaying
 import space.mai.mai_launcher.domain.TimeLabels
 import space.mai.mai_launcher.domain.Until
 import space.mai.mai_launcher.ui.SetupItem
+import space.mai.mai_launcher.domain.SignalDigest
+import space.mai.mai_launcher.domain.SignalGroup
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
@@ -100,7 +102,7 @@ fun SetupPanel(items: List<SetupItem>, onItem: (SetupItem) -> Unit, onDismiss: (
 // ---------------------------------------------------------------- Musik
 
 /** Graustufen und dann in die Akzentfarbe getönt (Duotone), damit Cover ruhig bleiben. */
-private fun duotone(c: Color): ColorFilter {
+internal fun duotone(c: Color): ColorFilter {
     val r = 0.2126f; val g = 0.7152f; val b = 0.0722f
     return ColorFilter.colorMatrix(
         ColorMatrix(
@@ -411,7 +413,7 @@ fun NewsPanel(
 }
 
 @Composable
-private fun ageLabel(ms: Long): String {
+internal fun ageLabel(ms: Long): String {
     val min = (ms / 60_000).coerceAtLeast(0)
     return when {
         min < 60 -> stringResource(R.string.age_minutes, min)
@@ -446,6 +448,69 @@ private fun FeedField(onAdd: (String) -> Boolean) {
             }
             Spacer(Modifier.width(8.dp))
             EditChip("+", { if (onAdd(text)) text = "" else invalid = true })
+        }
+    }
+}
+
+// ---------------------------------------------------------------- Signale
+
+/**
+ * Benachrichtigungen je App: Anzahl, neuester Absender/Betreff (nur wenn
+ * „Text zeigen“ an ist). Tippen öffnet die Benachrichtigung selbst.
+ */
+@Composable
+fun SignalsPanel(
+    groups: List<SignalGroup>,
+    showText: Boolean,
+    nowMillis: Long,
+    onOpen: (String) -> Unit,
+    onToggleText: () -> Unit,
+) {
+    val accent = LocalAccent.current.main
+    MaiPanel(
+        stringResource(R.string.panel_signals),
+        Modifier.fillMaxWidth(),
+        meta = if (groups.isEmpty()) null else groups.sumOf { it.count }.toString(),
+    ) {
+        if (groups.isEmpty()) {
+            Spacer(Modifier.height(6.dp))
+            MaiText(stringResource(R.string.signals_empty), MaiType.Body)
+        }
+        groups.forEach { g ->
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .clickable(role = Role.Button) { onOpen(g.latestKey) }
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    Modifier.size(26.dp).background(MaiColors.Amber.copy(alpha = 0.12f), ChamferShape(4.dp))
+                        .glowBorder(ChamferShape(4.dp), MaiColors.Amber.copy(alpha = 0.7f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    MaiText(SignalDigest.badgeText(g.count) ?: "", MaiType.Mono.copy(fontSize = MaiType.Label.fontSize), color = MaiColors.Amber)
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        MaiLabel(g.appLabel.uppercase(), Modifier.weight(1f), color = accent)
+                        MaiLabel(ageLabel(nowMillis - g.latestAt), color = MaiColors.Text3)
+                    }
+                    val line = listOfNotNull(g.latestTitle, g.latestText).joinToString(" · ")
+                    if (line.isNotEmpty()) MaiText(line, MaiType.Body.copy(color = MaiColors.Text))
+                }
+            }
+        }
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 40.dp).clickable(role = Role.Switch, onClick = onToggleText),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            MaiLabel(
+                stringResource(if (showText) R.string.signals_text_on else R.string.signals_text_off),
+                color = MaiColors.Text3,
+            )
         }
     }
 }

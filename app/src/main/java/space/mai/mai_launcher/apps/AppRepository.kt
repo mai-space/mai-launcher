@@ -96,6 +96,17 @@ class AppRepository(private val context: Context) {
         }
     }
 
+    /** Pakete von Musik-/Podcast-Apps (Kategorie Musik oder Media-Browser-Dienst). */
+    fun musicPackages(): Set<String> = runCatching {
+        val pm = context.packageManager
+        val byCategory = pm.queryIntentActivities(
+            Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_APP_MUSIC), 0,
+        ).map { it.activityInfo.packageName }
+        val byService = pm.queryIntentServices(Intent("android.media.browse.MediaBrowserService"), 0)
+            .map { it.serviceInfo.packageName }
+        (byCategory + byService).toSet() - context.packageName
+    }.getOrDefault(emptySet())
+
     /**
      * Standard-Dock: Telefon, Nachrichten, Kamera, Browser – jeweils die
      * Standard-App des Systems, sofern sie eine Start-Activity hat.

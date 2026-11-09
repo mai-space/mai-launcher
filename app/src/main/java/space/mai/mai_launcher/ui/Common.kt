@@ -33,6 +33,7 @@ fun AppToken(
     modifier: Modifier = Modifier,
     size: Dp = 44.dp,
     showName: Boolean = true,
+    badge: String? = null,
     onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit,
 ) {
@@ -43,6 +44,7 @@ fun AppToken(
             size = size,
             text = if (icon == null) tile.monogram else null,
             icon = icon,
+            badge = badge,
             onClick = onClick,
             onLongClick = onLongClick,
         )

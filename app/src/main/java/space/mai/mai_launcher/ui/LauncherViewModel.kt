@@ -25,6 +25,8 @@ import space.mai.mai_launcher.domain.Contact
 import space.mai.mai_launcher.domain.ContactRanking
 import space.mai.mai_launcher.domain.ContactVerb
 import space.mai.mai_launcher.domain.Keypad
+import space.mai.mai_launcher.domain.SignalDigest
+import space.mai.mai_launcher.domain.SignalGroup
 import space.mai.mai_launcher.data.LaunchLog
 import space.mai.mai_launcher.feeds.FeedRepository
 import space.mai.mai_launcher.data.LauncherPrefs
@@ -37,6 +39,7 @@ import space.mai.mai_launcher.domain.Predictor
 import space.mai.mai_launcher.domain.launchCounts
 import space.mai.mai_launcher.media.MediaHub
 import space.mai.mai_launcher.signals.SignalsHub
+import space.mai.mai_launcher.voice.VoiceInput
 import space.mai.mai_launcher.system.HomeRole
 import space.mai.mai_launcher.system.SystemActions
 import space.mai.mai_launcher.system.SystemStatus
@@ -48,6 +51,8 @@ interface LauncherHost {
     fun requestHomeRole()
     fun requestCalendar()
     fun requestContacts()
+    fun requestMic()
+    fun startSystemSpeech()
     fun openNotificationAccess()
     fun bindWidget(id: Int, provider: ComponentName)
     fun configureWidget(id: Int)
@@ -66,6 +71,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     val widgets = WidgetHost(app)
     val feeds = FeedRepository(app, viewModelScope)
     val contacts = ContactsRepository(app, viewModelScope)
+    val voice = VoiceInput(app)
     private val homeRole = HomeRole(app)
     private val prefs = LauncherPrefs(app)
     private val log = LaunchLog(app, viewModelScope).also { it.load() }
@@ -102,6 +108,27 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     val destinations = prefs.destinations
     val navigation = SignalsHub.navigation
+
+    // --- Signale (Benachrichtigungen) ---
+
+    val signalsShowText = prefs.signalsShowText
+    val signals: StateFlow<List<SignalGroup>> = combine(SignalsHub.items, prefs.signalsShowText) { items, show ->
+        SignalDigest.group(items.values, show)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val badges: StateFlow<Map<String, Int>> = SignalsHub.items.map { SignalDigest.badges(it.values) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+
+    fun openSignal(key: String) {
+        // Ohne eigene Aktion: die App öffnen.
+        if (SignalsHub.open(key)) return
+        val pkg = SignalsHub.items.value[key]?.packageName ?: return
+        val ctx = getApplication<Application>()
+        ctx.packageManager.getLaunchIntentForPackage(pkg)?.let {
+            runCatching { ctx.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        }
+    }
+
+    fun toggleSignalText() = prefs.setSignalsShowText(!prefs.signalsShowText.value)
 
     /** Mai-Widgets, die nur mit Freigabe (System-Dialog) aufs Deck können. */
     private val _maiPending = MutableStateFlow<List<ProviderRef>>(emptyList())
@@ -154,6 +181,42 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     fun runCommand(cmd: Command) {
         actions.run(cmd)
         if (cmd !is Command.Answer) closeIndex()
+    }
+
+    // --- Sprache ---
+
+    /** Mikrofon: Index öffnen und zuhören (auf dem Gerät, sonst System-Dialog). */
+    fun startVoice() {
+        if (voice.listening.value) { voice.stop(); return }
+        if (_screen.value != Screen.Index) openIndex(withKeyboard = false)
+        when (voice.mode()) {
+            VoiceInput.Mode.OnDevice -> if (voice.hasMic()) listenNow() else host?.requestMic()
+            VoiceInput.Mode.SystemDialog -> host?.startSystemSpeech()
+            VoiceInput.Mode.None -> Unit
+        }
+    }
+
+    fun onMicPermission(granted: Boolean) { if (granted) listenNow() }
+
+    private fun listenNow() {
+        _query.value = ""
+        voice.listen { text, _ -> _query.value = text }
+    }
+
+    fun onSpeechResult(text: String?) {
+        text?.trim()?.takeIf { it.isNotEmpty() }?.let { _query.value = it }
+    }
+
+    // --- Media ---
+
+    val musicApps: StateFlow<List<AppTile>> = apps.map { list ->
+        val pkgs = repo.musicPackages()
+        list.filter { it.key.packageName in pkgs && !it.isWork }.map { it.toTile() }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    fun openMedia() {
+        _editMode.value = false
+        _screen.value = Screen.Media
     }
 
     // --- Comms ---
@@ -279,6 +342,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun closeIndex() {
+        voice.stop()
         _screen.value = Screen.Deck
         _query.value = ""
         _pickingSlot.value = null
@@ -289,12 +353,14 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     fun onHome() {
         _editMode.value = false
         if (_screen.value == Screen.Comms) closeComms()
+        if (_screen.value == Screen.Media) _screen.value = Screen.Deck
         closeIndex()
     }
 
     fun onBack(): Boolean {
         when {
             _screen.value == Screen.Widgets -> _screen.value = Screen.Deck
+            _screen.value == Screen.Media -> _screen.value = Screen.Deck
             _screen.value == Screen.Comms && _keypadOpen.value -> _keypadOpen.value = false
             _screen.value == Screen.Comms && _commsQuery.value.isNotEmpty() -> _commsQuery.value = ""
             _screen.value == Screen.Comms -> closeComms()

@@ -15,7 +15,7 @@ data class AppTile(val key: AppKey, val label: String, val isWork: Boolean = fal
 
 fun AppInfo.toTile() = AppTile(key, label, isWork)
 
-enum class Screen { Deck, Index, Widgets, Comms }
+enum class Screen { Deck, Index, Widgets, Comms, Media }
 
 /** Liefert einfarbige App-Symbole; in Tests/Vorschau ohne Symbole. */
 fun interface IconProvider {

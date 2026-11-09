@@ -42,8 +42,8 @@
     <string name="setup_title">Set up</string>
     <string name="setup_home">Make this your home screen</string>
     <string name="setup_home_body">Opens the system dialog. Android no longer asks when you press Home.</string>
-    <string name="setup_signals">Music and navigation</string>
-    <string name="setup_signals_body">Notification access: controls for what is playing and the next turn. Read only, never sent.</string>
+    <string name="setup_signals">Music, navigation, notifications</string>
+    <string name="setup_signals_body">Notification access: media controls, next turn and a notification overview. Read only, never sent.</string>
     <string name="setup_calendar">Upcoming events</string>
     <string name="setup_calendar_body">Calendar access: shows your next appointments. Read only.</string>
     <string name="panel_now_playing">Now playing</string>
@@ -125,4 +125,19 @@
     <string name="setting_notifications">Notifications</string>
     <string name="setting_storage">Storage</string>
     <string name="setting_all">All settings</string>
+    <string name="tab_media">MEDIA</string>
+    <string name="media_up_next">UP NEXT</string>
+    <string name="media_idle">Nothing is playing</string>
+    <string name="media_idle_body">Start something in a music or podcast app. Controls appear here.</string>
+    <string name="media_no_access">Needs notification access to see what other apps play.</string>
+    <string name="media_allow">ALLOW</string>
+    <string name="media_output">Output and volume</string>
+    <string name="media_open_app">Open app</string>
+    <string name="panel_signals">Signals</string>
+    <string name="signals_empty">No new notifications.</string>
+    <string name="signals_text_on">TEXT SHOWN · TAP TO HIDE</string>
+    <string name="signals_text_off">TEXT HIDDEN · TAP TO SHOW</string>
+    <string name="voice_start">Speak a command</string>
+    <string name="voice_stop">Stop listening</string>
+    <string name="voice_listening">LISTENING …</string>
 </resources>

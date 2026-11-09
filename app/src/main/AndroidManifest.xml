@@ -24,6 +24,8 @@
     <uses-permission android:name="android.permission.READ_CONTACTS" />
     <!-- Befehlszeile: „timer 10“, „wecker 6:30“ an die Uhr-App übergeben. -->
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
+    <!-- Spracheingabe auf dem Gerät (optional, nur auf Tippen aufs Mikrofon). -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <!-- Sichtbarkeit: alle startbaren Apps und die Standard-Apps für das Dock. -->
     <queries>
@@ -45,6 +47,17 @@
         </intent>
         <intent>
             <action android:name="android.media.action.STILL_IMAGE_CAMERA" />
+        </intent>
+        <!-- Media: Musik-Apps für den Schnellstart, wenn nichts läuft. -->
+        <intent>
+            <action android:name="android.media.browse.MediaBrowserService" />
+        </intent>
+        <!-- Spracheingabe: Erkennungsdienst des Systems (auf dem Gerät). -->
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
         </intent>
         <intent>
             <action android:name="android.intent.action.VIEW" />

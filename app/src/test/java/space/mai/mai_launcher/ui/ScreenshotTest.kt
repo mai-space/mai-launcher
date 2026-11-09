@@ -19,6 +19,10 @@ import space.mai.mai_launcher.domain.AppKey
 import space.mai.mai_launcher.domain.CalendarEvent
 import space.mai.mai_launcher.domain.CommandParser
 import space.mai.mai_launcher.domain.Contact
+import space.mai.mai_launcher.domain.SignalGroup
+import space.mai.mai_launcher.ui.media.MediaScreen
+import space.mai.mai_launcher.ui.media.MediaScreenActions
+import space.mai.mai_launcher.ui.media.MediaState
 import space.mai.mai_launcher.ui.comms.CommsActions
 import space.mai.mai_launcher.ui.comms.CommsScreen
 import space.mai.mai_launcher.ui.comms.CommsState
@@ -330,5 +334,56 @@ class ScreenshotTest {
             )
         }
         compose.onRoot().captureRoboImage("../project-docs/screenshots/10_comms_keypad.png")
+    }
+
+    @Test fun deckSignals() {
+        compose.setContent {
+            Frame {
+                DeckScreen(
+                    DeckState(
+                        system = system,
+                        dock = listOf(tile("Phone"), tile("Messages"), tile("Camera"), tile("Browser")),
+                        likely = listOf(tile("Music"), tile("Calendar"), tile("Ruf durch"), tile("Notes")),
+                        likelyWindow = 20 to 22,
+                        appCount = apps.size,
+                        zone = zone,
+                        signals = listOf(
+                            SignalGroup("app.messages", "Messages", 3, "Sam", "Kommst du nachher noch vorbei?", at(8, 21, 30), "k1"),
+                            SignalGroup("app.mail", "Mail", 1, "Stadtwerke", "Ihre Abrechnung ist da", at(8, 19, 5), "k2"),
+                        ),
+                        signalsShowText = true,
+                        badges = mapOf(tile("Messages").key.packageName to 3),
+                    ),
+                    DeckActions(),
+                )
+            }
+        }
+        compose.onRoot().captureRoboImage("../project-docs/screenshots/12_deck_signals.png")
+    }
+
+    @Composable
+    private fun Media(state: MediaState) {
+        CompositionLocalProvider(LocalAccent provides Accents.Amber) {
+            MaiBackground { MediaScreen(state, MediaScreenActions(elapsedNow = { 0L })) }
+        }
+    }
+
+    @Test fun media() {
+        compose.setContent {
+            Media(
+                MediaState(
+                    nowPlaying = NowPlaying("Low Orbit Lullaby", "The Kepler Set", "Music", true, 102_000, 243_000),
+                    queue = listOf("Drift Burn", "Belt Static", "Ceres Morning"),
+                ),
+            )
+        }
+        compose.onRoot().captureRoboImage("../project-docs/screenshots/13_media.png")
+    }
+
+    @Test fun mediaIdle() {
+        compose.setContent {
+            Media(MediaState(nowPlaying = null, musicApps = listOf(tile("Music"), tile("Ruf durch"))))
+        }
+        compose.onRoot().captureRoboImage("../project-docs/screenshots/14_media_idle.png")
     }
 }

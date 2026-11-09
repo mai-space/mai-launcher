@@ -4,10 +4,12 @@ import android.app.Notification
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import space.mai.mai_launcher.domain.NavParser
+import space.mai.mai_launcher.domain.SignalItem
 
 /**
  * Benachrichtigungszugriff (optional, vom Nutzer freigegeben). Wird gebraucht für:
- * Media-Sessions anderer Apps (Musik-Panel) und laufende Navigation.
+ * Media-Sessions anderer Apps (Musik-Panel), laufende Navigation und die
+ * Benachrichtigungs-Übersicht samt Zählern.
  * Liest nur, speichert nichts, sendet nichts.
  */
 class MaiNotificationListener : NotificationListenerService() {
@@ -25,11 +27,15 @@ class MaiNotificationListener : NotificationListenerService() {
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
         SignalsHub.removeNavigation(sbn.key)
+        SignalsHub.remove(sbn.key)
     }
 
     private fun consider(sbn: StatusBarNotification) {
         val n = sbn.notification ?: return
-        if (n.category != Notification.CATEGORY_NAVIGATION) return
+        if (n.category != Notification.CATEGORY_NAVIGATION) {
+            signal(sbn, n)
+            return
+        }
         val extras = n.extras
         val info = NavParser.parse(
             title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString(),
@@ -38,6 +44,29 @@ class MaiNotificationListener : NotificationListenerService() {
             appLabel = appLabel(sbn.packageName),
         ) ?: return
         SignalsHub.setNavigation(SignalsHub.NavEntry(sbn.key, info, n.contentIntent))
+    }
+
+    /** Nur echte Hinweise: keine laufenden, keine Medien, keine Gruppen-Köpfe, nicht die eigenen. */
+    private fun signal(sbn: StatusBarNotification, n: Notification) {
+        val ongoing = n.flags and (Notification.FLAG_ONGOING_EVENT or Notification.FLAG_FOREGROUND_SERVICE) != 0
+        val summary = n.flags and Notification.FLAG_GROUP_SUMMARY != 0
+        val media = n.extras.containsKey(Notification.EXTRA_MEDIA_SESSION) || n.category == Notification.CATEGORY_TRANSPORT
+        val system = n.category == Notification.CATEGORY_SERVICE || n.category == Notification.CATEGORY_PROGRESS
+        if (ongoing || summary || media || system || sbn.packageName == packageName) {
+            SignalsHub.remove(sbn.key)
+            return
+        }
+        val extras = n.extras
+        val item = SignalItem(
+            key = sbn.key,
+            packageName = sbn.packageName,
+            appLabel = appLabel(sbn.packageName) ?: sbn.packageName,
+            title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString(),
+            text = (extras.getCharSequence(Notification.EXTRA_TEXT) ?: extras.getCharSequence(Notification.EXTRA_BIG_TEXT))?.toString(),
+            postedAt = sbn.postTime,
+            number = n.number,
+        )
+        SignalsHub.put(item, n.contentIntent)
     }
 
     @Suppress("DEPRECATION")

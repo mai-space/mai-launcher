@@ -66,4 +66,11 @@ class PanelsTest {
         assertEquals(SoundMode.Ring, SoundMode.of(99))
         assertEquals(SoundMode.Vibrate, SoundMode.of(1))
     }
+
+    @Test fun seekRingAngles() {
+        assertEquals(0f, SeekRing.fraction(50f, 0f, 100f, 100f), 0.001f)
+        assertEquals(0.25f, SeekRing.fraction(100f, 50f, 100f, 100f), 0.001f)
+        assertEquals(0.5f, SeekRing.fraction(50f, 100f, 100f, 100f), 0.001f)
+        assertEquals(0.75f, SeekRing.fraction(0f, 50f, 100f, 100f), 0.001f)
+    }
 }

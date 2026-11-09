@@ -35,6 +35,13 @@ class MainActivity : ComponentActivity(), LauncherHost {
     private val contactsRequest = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
         vm.refreshAccess()
     }
+    private val micRequest = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+        vm.onMicPermission(it)
+    }
+    private val speech = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
+        val text = r.data?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+        vm.onSpeechResult(text)
+    }
     private val widgetBind = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         vm.onWidgetBound(it.resultCode == RESULT_OK)
     }
@@ -89,6 +96,12 @@ class MainActivity : ComponentActivity(), LauncherHost {
     override fun requestCalendar() = calendarRequest.launch(Manifest.permission.READ_CALENDAR)
 
     override fun requestContacts() = contactsRequest.launch(Manifest.permission.READ_CONTACTS)
+
+    override fun requestMic() = micRequest.launch(Manifest.permission.RECORD_AUDIO)
+
+    override fun startSystemSpeech() {
+        runCatching { speech.launch(vm.voice.systemIntent()) }
+    }
 
     override fun openNotificationAccess() {
         val component = ComponentName(this, MaiNotificationListener::class.java)
