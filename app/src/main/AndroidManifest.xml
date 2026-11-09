@@ -31,6 +31,10 @@
 
     <!-- Sichtbarkeit: alle startbaren Apps und die Standard-Apps für das Dock. -->
     <queries>
+        <!-- Prognose: Widget-Stände der Mai-Apps (nur bei gleicher Signatur freigegeben). -->
+        <provider android:authorities="space.mai.mai_budget_planer.summary" />
+        <provider android:authorities="space.mai.mai_fitness.summary" />
+        <provider android:authorities="space.mai.mai_household.summary" />
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />

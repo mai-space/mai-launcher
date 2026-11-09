@@ -95,6 +95,9 @@ fun LauncherApp(vm: LauncherViewModel) {
     val haptics by vm.haptics.collectAsStateWithLifecycle()
     val sounds by vm.sounds.collectAsStateWithLifecycle()
     val backupStatus by vm.backupStatus.collectAsStateWithLifecycle()
+    val forecast by vm.forecast.collectAsStateWithLifecycle()
+    val forecastApps by vm.forecastApps.collectAsStateWithLifecycle()
+    val forecastOn by vm.forecastOn.collectAsStateWithLifecycle()
     val use24h = systemUses24h()
 
     val artBitmap = remember(art) { art?.asImageBitmap() }
@@ -212,6 +215,7 @@ fun LauncherApp(vm: LauncherViewModel) {
             onArrangeDeck = vm::arrangeDeck,
             onAddWidget = vm::openWidgetPicker,
             onToggleSignalText = vm::toggleSignalText,
+            onForecast = vm::toggleForecast,
             onHaptics = vm::cycleHaptics,
             onSounds = vm::cycleSounds,
             onHome = vm::settingsHome,
@@ -273,6 +277,8 @@ fun LauncherApp(vm: LauncherViewModel) {
                             signals = if (access.signals) signals else null,
                             signalsShowText = signalsText,
                             badges = badges,
+                            forecast = forecast,
+                            forecastApps = forecastApps,
                         ),
                         deckActions,
                     )
@@ -300,6 +306,7 @@ fun LauncherApp(vm: LauncherViewModel) {
                             calendar = access.calendar,
                             contacts = access.contacts,
                             signalsShowText = signalsText,
+                            forecast = forecastOn,
                             haptics = haptics,
                             sounds = sounds,
                             widgetCount = widgetIds.size,

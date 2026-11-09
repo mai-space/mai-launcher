@@ -32,6 +32,12 @@ import space.mai.mai_launcher.feeds.FeedRepository
 import space.mai.mai_launcher.feedback.FeedbackPlayer
 import space.mai.mai_launcher.domain.FeedbackKind
 import space.mai.mai_launcher.domain.LayoutBackup
+import space.mai.mai_launcher.domain.Forecast
+import space.mai.mai_launcher.domain.ForecastLine
+import space.mai.mai_launcher.domain.MaiSummaryApps
+import space.mai.mai_launcher.summary.MaiSummaries
+import space.mai.mai_launcher.summary.MaiSummaryReader
+import kotlinx.coroutines.launch
 import space.mai.mai_launcher.domain.LayoutBackupCodec
 import space.mai.mai_launcher.ui.settings.BackupStatus
 import space.mai.mai_launcher.ui.settings.DockSlot
@@ -281,6 +287,38 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         if (_access.value.contacts) actions.launcherInfo() else host?.requestContacts()
     }
 
+    // --- Prognose aus den Mai-Apps ---
+
+    private val summaryReader = MaiSummaryReader(app)
+    private val _summaries = MutableStateFlow(MaiSummaries())
+    val forecastOn = prefs.forecast
+
+    /** Zeilen fürs Deck; leer ohne Mai-Apps, ohne Zugriff oder wenn ausgeschaltet. */
+    val forecast: StateFlow<List<ForecastLine>> = combine(_summaries, prefs.forecast) { s, on ->
+        if (!on) return@combine emptyList()
+        val today = java.time.LocalDate.now()
+        listOfNotNull(
+            s.budget?.let { Forecast.budget(it, today) },
+            s.fitness?.let { Forecast.fitness(it, today) },
+            s.household?.let { Forecast.household(it, today) },
+        )
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /** Kacheln der Mai-Apps (zum Öffnen aus dem Prognose-Panel). */
+    val forecastApps: StateFlow<Map<String, AppTile>> = apps.map { list ->
+        MaiSummaryApps.all.mapNotNull { pkg -> list.firstOrNull { it.key.packageName == pkg && !it.isWork }?.let { pkg to it.toTile() } }.toMap()
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+
+    private fun refreshForecast() {
+        if (!prefs.forecast.value) return
+        viewModelScope.launch { _summaries.value = summaryReader.read() }
+    }
+
+    fun toggleForecast() {
+        prefs.setForecast(!prefs.forecast.value)
+        refreshForecast()
+    }
+
     // --- Sicherung von Layout und Einstellungen ---
 
     /** Rückmeldung nach Export/Import für die Einstellungen (null = nichts anzeigen). */
@@ -404,6 +442,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         refreshAccess()
         feeds.refresh()
         autoAddMaiWidgets()
+        refreshForecast()
     }
 
     /** Link eines News-Eintrags im Standard-Browser öffnen. */
