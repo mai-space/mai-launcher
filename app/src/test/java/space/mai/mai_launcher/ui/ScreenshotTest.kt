@@ -17,6 +17,8 @@ import space.mai.mai_launcher.design.MaiBackground
 import space.mai.mai_launcher.domain.AppInfo
 import space.mai.mai_launcher.domain.AppKey
 import space.mai.mai_launcher.domain.CalendarEvent
+import space.mai.mai_launcher.domain.FeedItem
+import space.mai.mai_launcher.feeds.FeedState
 import space.mai.mai_launcher.domain.NavInfo
 import space.mai.mai_launcher.domain.NowPlaying
 import space.mai.mai_launcher.domain.SoundMode
@@ -110,12 +112,47 @@ class ScreenshotTest {
                             CalendarEvent(2, "Training mit Sam", at(10, 18, 30), at(10, 20, 0), false),
                             CalendarEvent(3, "Geburtstag Alex", utc(11), utc(12), true),
                         ),
+                        news = FeedState(
+                            urls = listOf("https://news.example/feed"),
+                            items = listOf(
+                                FeedItem("Beispiel News", "Neue Fähre zwischen Hafen und Insel startet im Frühjahr", "https://news.example/1", at(8, 21, 2)),
+                                FeedItem("Tech-Blog", "Warum dunkle Oberflächen Akku sparen – und wann nicht", "https://blog.example/2", at(8, 18, 40)),
+                            ),
+                        ),
                     ),
                     DeckActions(),
                 )
             }
         }
         compose.onRoot().captureRoboImage("../project-docs/screenshots/05_deck_live.png")
+    }
+
+    @Test fun deckNews() {
+        compose.setContent {
+            Frame {
+                DeckScreen(
+                    DeckState(
+                        system = system,
+                        dock = listOf(tile("Phone"), tile("Messages"), tile("Camera"), tile("Browser")),
+                        likely = emptyList(),
+                        likelyWindow = 20 to 22,
+                        appCount = apps.size,
+                        zone = zone,
+                        news = FeedState(
+                            urls = listOf("https://news.example/feed", "https://blog.example/atom"),
+                            items = listOf(
+                                FeedItem("Beispiel News", "Neue Fähre zwischen Hafen und Insel startet im Frühjahr", "https://news.example/1", at(8, 21, 2)),
+                                FeedItem("Tech-Blog", "Warum dunkle Oberflächen Akku sparen – und wann nicht", "https://blog.example/2", at(8, 18, 40)),
+                                FeedItem("Beispiel News", "Stadtbibliothek verlängert Öffnungszeiten am Wochenende", "https://news.example/3", at(8, 9, 5)),
+                                FeedItem("Tech-Blog", "Kleine Helfer: fünf Tastenkürzel, die kaum jemand kennt", "https://blog.example/4", at(7, 16, 30)),
+                            ),
+                        ),
+                    ),
+                    DeckActions(),
+                )
+            }
+        }
+        compose.onRoot().captureRoboImage("../project-docs/screenshots/07_deck_news.png")
     }
 
     @Test fun deckSetupAndEdit() {

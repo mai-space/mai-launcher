@@ -7,8 +7,11 @@ Systemsprache. Paket `space.mai.mai_launcher`, CI-Artefakt `mai-launcher.apk`.
 
 ## Datenschutz (Pflicht)
 
-- **Keine INTERNET-Berechtigung.** Der Launcher sieht alle Apps, später
-  Benachrichtigungen und Kontakte – nichts davon darf das Gerät verlassen.
+- **INTERNET nur für Feeds.** Der Launcher sieht alle Apps,
+  Benachrichtigungen und Termine – nichts davon darf das Gerät verlassen.
+  Netzwerk nutzt ausschließlich `feeds/FeedRepository`: nur vom Nutzer
+  eingetragene HTTPS-Feeds, keine Bilder, keine Cookies/Kennungen, keine
+  Analytics. Keine weiteren Netzwerkzugriffe ohne Rücksprache.
 - Kein Android-Backup (`allowBackup=false`, `data_extraction_rules.xml`),
   keine Analytics, kein Konto.
 - Jede Berechtigung optional, mit Erklärung; der Launcher muss ohne laufen.
@@ -22,7 +25,8 @@ Systemsprache. Paket `space.mai.mai_launcher`, CI-Artefakt `mai-launcher.apk`.
 - **`SecureFile`** (Format „MAIL“ v1, AES-GCM, Keystore): Format, Alias
   `mai_launcher_log_key` und Dateiname `launch_log.bin` nie ändern; neue
   Formate nur mit neuer Versionsnummer und Lesbarkeit der alten.
-- **Einstellungen** (`LauncherPrefs`, Schlüssel `dock_0..3`) tolerant lesen,
+- **Einstellungen** (`LauncherPrefs`, Schlüssel `dock_0..3`, `dest_home`, `dest_work`, `setup_dismissed`,
+  `widgets`, `feeds`) tolerant lesen,
   Schlüssel nie umbenennen.
 
 ## Design-System (`design/`)

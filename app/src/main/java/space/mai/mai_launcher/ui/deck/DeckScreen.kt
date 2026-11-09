@@ -17,6 +17,7 @@ import space.mai.mai_launcher.domain.CalendarEvent
 import space.mai.mai_launcher.domain.NavInfo
 import space.mai.mai_launcher.domain.NowPlaying
 import space.mai.mai_launcher.ui.SetupItem
+import space.mai.mai_launcher.feeds.FeedState
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -92,6 +93,7 @@ data class DeckState(
     val destinations: List<String> = emptyList(),
     val widgets: List<WidgetSlot> = emptyList(),
     val editMode: Boolean = false,
+    val news: FeedState = FeedState(),
 )
 
 /** Aktionen des Decks. */
@@ -118,6 +120,10 @@ class DeckActions(
     val onMoveWidget: (Int, Int) -> Unit = { _, _ -> },
     val onRemoveWidget: (Int) -> Unit = {},
     val widgetContent: @Composable (WidgetSlot) -> Unit = {},
+    val onOpenLink: (String) -> Unit = {},
+    val onRefreshNews: () -> Unit = {},
+    val onAddFeed: (String) -> Boolean = { false },
+    val onRemoveFeed: (String) -> Unit = {},
 )
 
 class MediaActions(
@@ -201,6 +207,11 @@ fun DeckScreen(state: DeckState, actions: DeckActions, modifier: Modifier = Modi
                     DestinationsPanel(state.destinations, state.editMode, actions.onDestination, actions.onSetDestination)
                 }
                 LikelyPanel(state, actions.onApp)
+                if (state.editMode || state.news.urls.isNotEmpty()) {
+                    val n = state.news
+                    NewsPanel(n.items, n.urls, n.failed, n.loading, state.system.nowMillis, state.editMode,
+                        actions.onOpenLink, actions.onRefreshNews, actions.onAddFeed, actions.onRemoveFeed)
+                }
                 state.widgets.forEach { w ->
                     WidgetPanel(
                         w, state.editMode,
