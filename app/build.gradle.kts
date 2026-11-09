@@ -1,7 +1,16 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+}
+
+// Upload-Schlüssel nur lokal bzw. im CI-Runner (key.properties im Wurzelordner,
+// nie im Repo). Ohne Datei wird wie bisher mit dem Debug-Schlüssel signiert.
+val keyPropertiesFile = rootProject.file("key.properties")
+val keyProperties = Properties().apply {
+    if (keyPropertiesFile.exists()) keyPropertiesFile.inputStream().use { load(it) }
 }
 
 android {
@@ -16,6 +25,22 @@ android {
         versionName = "0.1.0"
     }
 
+    // CI auf main: nie versehentlich mit dem Debug-Schlüssel ausliefern.
+    if (System.getenv("REQUIRE_RELEASE_SIGNING") == "true" && !keyPropertiesFile.exists()) {
+        throw GradleException("REQUIRE_RELEASE_SIGNING is set but key.properties is missing")
+    }
+
+    signingConfigs {
+        if (keyPropertiesFile.exists()) {
+            create("release") {
+                storeFile = file(keyProperties.getProperty("storeFile"))
+                storePassword = keyProperties.getProperty("storePassword")
+                keyAlias = keyProperties.getProperty("keyAlias")
+                keyPassword = keyProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -24,9 +49,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            // Bis zum echten Release-Schlüssel mit Debug-Schlüssel signieren,
-            // damit das CI-Artefakt installierbar ist.
-            signingConfig = signingConfigs.getByName("debug")
+            // Mit Upload-Schlüssel, sonst (Branches, lokal) mit Debug-Schlüssel.
+            signingConfig = signingConfigs.getByName(
+                if (keyPropertiesFile.exists()) "release" else "debug",
+            )
         }
     }
 
