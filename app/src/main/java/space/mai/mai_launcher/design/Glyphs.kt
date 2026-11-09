@@ -78,4 +78,26 @@ object Glyphs {
         drawLine(c, Offset(w * 0.6f, w * 0.12f), Offset(w * 0.88f, w * 0.12f), s)
         drawLine(c, Offset(w * 0.88f, w * 0.12f), Offset(w * 0.88f, w * 0.4f), s)
     }
+
+    /** Drei Schieberegler (Launcher-Einstellungen). */
+    val Sliders: DrawScope.(Color) -> Unit = { c ->
+        val w = size.width
+        val s = w * 0.08f
+        listOf(0.22f to 0.32f, 0.5f to 0.68f, 0.78f to 0.45f).forEach { (y, knob) ->
+            drawLine(c, Offset(w * 0.1f, w * y), Offset(w * 0.9f, w * y), s)
+            drawCircle(c, w * 0.11f, Offset(w * knob, w * y))
+        }
+    }
+
+    /** Glocke (Benachrichtigungen). */
+    val Bell: DrawScope.(Color) -> Unit = { c ->
+        val w = size.width
+        val s = w * 0.08f
+        drawPath(Path().apply {
+            moveTo(w * 0.18f, w * 0.75f); lineTo(w * 0.28f, w * 0.6f); lineTo(w * 0.28f, w * 0.38f)
+            lineTo(w * 0.5f, w * 0.15f); lineTo(w * 0.72f, w * 0.38f); lineTo(w * 0.72f, w * 0.6f)
+            lineTo(w * 0.82f, w * 0.75f); close()
+        }, c, style = Stroke(s, join = StrokeJoin.Miter))
+        drawLine(c, Offset(w * 0.4f, w * 0.88f), Offset(w * 0.6f, w * 0.88f), s)
+    }
 }

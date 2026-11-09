@@ -39,6 +39,12 @@ import space.mai.mai_launcher.ui.index.IndexActions
 import space.mai.mai_launcher.ui.index.IndexScreen
 import space.mai.mai_launcher.ui.index.IndexState
 import java.time.LocalDateTime
+import space.mai.mai_launcher.domain.HapticLevel
+import space.mai.mai_launcher.domain.SoundLevel
+import space.mai.mai_launcher.ui.settings.DockSlot
+import space.mai.mai_launcher.ui.settings.SettingsActions
+import space.mai.mai_launcher.ui.settings.SettingsScreen
+import space.mai.mai_launcher.ui.settings.SettingsState
 import java.time.ZoneId
 
 /**
@@ -385,5 +391,27 @@ class ScreenshotTest {
             Media(MediaState(nowPlaying = null, musicApps = listOf(tile("Music"), tile("Ruf durch"))))
         }
         compose.onRoot().captureRoboImage("../project-docs/screenshots/14_media_idle.png")
+    }
+
+    @Test fun settings() {
+        compose.setContent {
+            Frame {
+                SettingsScreen(
+                    SettingsState(
+                        dock = listOf(
+                            DockSlot(tile("Phone"), false), DockSlot(tile("Messages"), false),
+                            DockSlot(tile("Music"), true), DockSlot(tile("Browser"), false),
+                        ),
+                        calendar = false,
+                        haptics = HapticLevel.Light,
+                        sounds = SoundLevel.Quiet,
+                        widgetCount = 2,
+                        version = "0.1.0",
+                    ),
+                    SettingsActions(),
+                )
+            }
+        }
+        compose.onRoot().captureRoboImage("../project-docs/screenshots/15_settings.png")
     }
 }

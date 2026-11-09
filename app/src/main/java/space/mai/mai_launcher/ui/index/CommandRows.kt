@@ -22,6 +22,7 @@ import space.mai.mai_launcher.R
 import space.mai.mai_launcher.design.ChamferShape
 import space.mai.mai_launcher.design.GlowLevel
 import space.mai.mai_launcher.design.LocalAccent
+import space.mai.mai_launcher.design.LocalFeedback
 import space.mai.mai_launcher.design.MaiColors
 import space.mai.mai_launcher.design.MaiDims
 import space.mai.mai_launcher.design.MaiLabel
@@ -123,13 +124,14 @@ private fun ResultRow(tag: String, text: String, hint: String?, highlighted: Boo
 
 @Composable
 fun SmallChip(text: String, color: Color, onClick: () -> Unit) {
+    val feedback = LocalFeedback.current
     val shape = ChamferShape(6.dp)
     Row(
         Modifier
             .heightIn(min = 36.dp)
             .background(MaiColors.Panel, shape)
             .glowBorder(shape, color)
-            .clickable(role = Role.Button, onClick = onClick)
+            .clickable(role = Role.Button) { feedback.tap(); onClick() }
             .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) { MaiLabel(text, color = color) }

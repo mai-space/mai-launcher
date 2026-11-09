@@ -34,8 +34,6 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -186,7 +184,7 @@ fun HexToken(
     onLongClick: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
-    val haptics = LocalHapticFeedback.current
+    val feedback = LocalFeedback.current
     val touch = maxOf(size, MaiDims.MinTouch)
     Box(
         modifier
@@ -197,12 +195,12 @@ fun HexToken(
                     Modifier.combinedClickable(
                         role = Role.Button,
                         onClick = {
-                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            feedback.tap()
                             onClick?.invoke()
                         },
                         onLongClick = onLongClick?.let {
                             {
-                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                feedback.longPress()
                                 it()
                             }
                         },

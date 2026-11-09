@@ -1,0 +1,241 @@
+package space.mai.mai_launcher.ui.settings
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import space.mai.mai_launcher.R
+import space.mai.mai_launcher.design.GripLine
+import space.mai.mai_launcher.design.HexToken
+import space.mai.mai_launcher.design.LocalAccent
+import space.mai.mai_launcher.design.LocalFeedback
+import space.mai.mai_launcher.domain.HapticLevel
+import space.mai.mai_launcher.domain.SoundLevel
+import space.mai.mai_launcher.design.MaiColors
+import space.mai.mai_launcher.design.MaiLabel
+import space.mai.mai_launcher.design.MaiPanel
+import space.mai.mai_launcher.design.MaiText
+import space.mai.mai_launcher.design.MaiType
+import space.mai.mai_launcher.design.MainFrame
+import space.mai.mai_launcher.ui.AppTile
+import space.mai.mai_launcher.ui.AppToken
+import space.mai.mai_launcher.ui.deck.EditChip
+
+/** Ein Dock-Platz: belegte App und ob sie selbst gewählt (nicht System-Standard) ist. */
+@Immutable
+data class DockSlot(val tile: AppTile?, val custom: Boolean)
+
+/** Alles, was die Launcher-Einstellungen zeigen (reine Daten). */
+@Immutable
+data class SettingsState(
+    val dock: List<DockSlot>,
+    val isHome: Boolean = true,
+    val signals: Boolean = true,
+    val calendar: Boolean = true,
+    val contacts: Boolean = true,
+    val signalsShowText: Boolean = false,
+    val haptics: HapticLevel = HapticLevel.Light,
+    val sounds: SoundLevel = SoundLevel.Off,
+    val widgetCount: Int = 0,
+    val feedCount: Int = 0,
+    val version: String = "",
+)
+
+class SettingsActions(
+    val onDockSlot: (Int) -> Unit = {},
+    val onDockReset: () -> Unit = {},
+    val onArrangeDeck: () -> Unit = {},
+    val onAddWidget: () -> Unit = {},
+    val onToggleSignalText: () -> Unit = {},
+    val onHaptics: () -> Unit = {},
+    val onSounds: () -> Unit = {},
+    val onHome: () -> Unit = {},
+    val onNotifications: () -> Unit = {},
+    val onCalendar: () -> Unit = {},
+    val onContacts: () -> Unit = {},
+    val onSystemSettings: () -> Unit = {},
+    val onAppInfo: () -> Unit = {},
+    val onClose: () -> Unit = {},
+)
+
+/** Launcher-Einstellungen: Dock, Deck, Freigaben, System. Über die Seitenleiste erreichbar. */
+@Composable
+fun SettingsScreen(state: SettingsState, actions: SettingsActions, modifier: Modifier = Modifier) {
+    val threshold = with(LocalDensity.current) { 72.dp.toPx() }
+    Box(
+        modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(start = 14.dp, end = 14.dp, top = 6.dp, bottom = 8.dp)
+            // Nach rechts wischen = zurück zum Deck.
+            .pointerInput(Unit) {
+                var total = 0f
+                detectHorizontalDragGestures(
+                    onDragStart = { total = 0f },
+                    onDragEnd = { if (total > threshold) actions.onClose() },
+                ) { _, dx -> total += dx }
+            },
+    ) {
+        MainFrame(
+            title = stringResource(R.string.settings_title).uppercase(),
+            meta = state.version.takeIf { it.isNotEmpty() }?.let { "V$it" },
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            Column(
+                Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(top = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                DockPanel(state.dock, actions)
+                MaiPanel(stringResource(R.string.settings_deck), Modifier.fillMaxWidth()) {
+                    SettingRow(stringResource(R.string.settings_arrange), stringResource(R.string.settings_arrange_body),
+                        stringResource(R.string.settings_open), actions.onArrangeDeck)
+                    SettingRow(stringResource(R.string.settings_add_widget), stringResource(R.string.settings_widgets_count, state.widgetCount),
+                        "+", actions.onAddWidget)
+                    SettingRow(stringResource(R.string.settings_signal_text), stringResource(R.string.settings_signal_text_body),
+                        onOff(state.signalsShowText), actions.onToggleSignalText, on = state.signalsShowText)
+                }
+                MaiPanel(stringResource(R.string.settings_feedback), Modifier.fillMaxWidth()) {
+                    SettingRow(stringResource(R.string.settings_haptics), stringResource(R.string.settings_haptics_body),
+                        hapticLabel(state.haptics), actions.onHaptics, on = state.haptics != HapticLevel.Off)
+                    SettingRow(stringResource(R.string.settings_sounds), stringResource(R.string.settings_sounds_body),
+                        soundLabel(state.sounds), actions.onSounds, on = state.sounds != SoundLevel.Off)
+                }
+                MaiPanel(stringResource(R.string.settings_access), Modifier.fillMaxWidth()) {
+                    SettingRow(stringResource(R.string.settings_home), stringResource(R.string.settings_home_body),
+                        access(state.isHome), actions.onHome, on = state.isHome)
+                    SettingRow(stringResource(R.string.settings_notifications), stringResource(R.string.settings_notifications_body),
+                        access(state.signals), actions.onNotifications, on = state.signals)
+                    SettingRow(stringResource(R.string.settings_calendar), stringResource(R.string.setup_calendar),
+                        access(state.calendar), actions.onCalendar, on = state.calendar)
+                    SettingRow(stringResource(R.string.settings_contacts), stringResource(R.string.settings_contacts_body),
+                        access(state.contacts), actions.onContacts, on = state.contacts)
+                }
+                MaiPanel(stringResource(R.string.settings_system), Modifier.fillMaxWidth()) {
+                    SettingRow(stringResource(R.string.settings_android), null, stringResource(R.string.settings_open), actions.onSystemSettings)
+                    SettingRow(stringResource(R.string.settings_app_info), null, stringResource(R.string.settings_open), actions.onAppInfo)
+                }
+                Spacer(Modifier.height(4.dp))
+            }
+            Spacer(Modifier.height(8.dp))
+            GripLine()
+            Spacer(Modifier.height(10.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                EditChip(stringResource(R.string.edit_done), actions.onClose)
+            }
+        }
+    }
+}
+
+@Composable
+private fun DockPanel(dock: List<DockSlot>, actions: SettingsActions) {
+    MaiPanel(
+        title = stringResource(R.string.settings_dock),
+        meta = stringResource(R.string.settings_dock_meta),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth()) {
+            dock.forEachIndexed { i, slot ->
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                    val tile = slot.tile
+                    if (tile != null) {
+                        AppToken(tile, size = 44.dp) { actions.onDockSlot(i) }
+                    } else {
+                        HexToken(
+                            contentDescription = stringResource(R.string.dock_slot_empty),
+                            size = 44.dp, text = "+", color = MaiColors.Text3, filled = false,
+                            onClick = { actions.onDockSlot(i) },
+                        )
+                        MaiLabel(stringResource(R.string.dock_slot_empty_short), color = MaiColors.Text3, align = TextAlign.Center)
+                    }
+                    MaiLabel(
+                        stringResource(if (slot.custom) R.string.settings_dock_custom else R.string.settings_dock_system),
+                        color = if (slot.custom) LocalAccent.current.main else MaiColors.Text3,
+                        align = TextAlign.Center,
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        MaiText(stringResource(R.string.settings_dock_body), MaiType.Body, color = MaiColors.Text2, maxLines = 3)
+        if (dock.any { it.custom }) {
+            Spacer(Modifier.height(10.dp))
+            EditChip(stringResource(R.string.settings_dock_reset), actions.onDockReset, MaiColors.Text2)
+        }
+    }
+}
+
+/** Eine Zeile: Titel, optional Erklärung, rechts der Zustand. Ganze Zeile tippbar. */
+@Composable
+private fun SettingRow(title: String, body: String?, value: String, onClick: () -> Unit, on: Boolean? = null) {
+    val feedback = LocalFeedback.current
+    val valueColor: Color = when (on) {
+        null, true -> LocalAccent.current.main
+        false -> MaiColors.Amber
+    }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 52.dp)
+            .clickable(role = Role.Button) { feedback.tap(); onClick() }
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            MaiText(title, MaiType.Body, color = MaiColors.Text)
+            if (body != null) MaiText(body, MaiType.Body, color = MaiColors.Text3, maxLines = 2)
+        }
+        Spacer(Modifier.width(12.dp))
+        MaiLabel(value, color = valueColor)
+    }
+}
+
+@Composable
+private fun onOff(on: Boolean) = stringResource(if (on) R.string.settings_on else R.string.settings_off)
+
+@Composable
+private fun access(granted: Boolean) = stringResource(if (granted) R.string.settings_granted else R.string.settings_allow)
+
+@Composable
+private fun hapticLabel(level: HapticLevel) = stringResource(
+    when (level) {
+        HapticLevel.Off -> R.string.settings_off
+        HapticLevel.Light -> R.string.settings_level_light
+        HapticLevel.Strong -> R.string.settings_level_strong
+    },
+)
+
+@Composable
+private fun soundLabel(level: SoundLevel) = stringResource(
+    when (level) {
+        SoundLevel.Off -> R.string.settings_off
+        SoundLevel.Quiet -> R.string.settings_level_quiet
+        SoundLevel.Medium -> R.string.settings_level_medium
+        SoundLevel.Loud -> R.string.settings_level_loud
+    },
+)
