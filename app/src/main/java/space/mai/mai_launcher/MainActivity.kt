@@ -32,6 +32,9 @@ class MainActivity : ComponentActivity(), LauncherHost {
     private val calendarRequest = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
         vm.refreshAccess()
     }
+    private val contactsRequest = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+        vm.refreshAccess()
+    }
     private val widgetBind = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         vm.onWidgetBound(it.resultCode == RESULT_OK)
     }
@@ -84,6 +87,8 @@ class MainActivity : ComponentActivity(), LauncherHost {
     }
 
     override fun requestCalendar() = calendarRequest.launch(Manifest.permission.READ_CALENDAR)
+
+    override fun requestContacts() = contactsRequest.launch(Manifest.permission.READ_CONTACTS)
 
     override fun openNotificationAccess() {
         val component = ComponentName(this, MaiNotificationListener::class.java)

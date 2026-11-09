@@ -1,10 +1,17 @@
 package space.mai.mai_launcher.system
 
 import android.annotation.SuppressLint
+import android.app.SearchManager
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.provider.AlarmClock
 import android.provider.Settings
+import androidx.core.net.toUri
+import space.mai.mai_launcher.domain.Command
+import space.mai.mai_launcher.domain.SettingPage
 
 /**
  * Öffnet Systemseiten. Android 10+ erlaubt Apps nicht, WLAN/Bluetooth direkt
@@ -33,6 +40,53 @@ class SystemActions(private val context: Context) {
     fun storageSettings() = start(Intent(Settings.ACTION_INTERNAL_STORAGE_SETTINGS), Intent(Settings.ACTION_SETTINGS))
     fun alarms() = start(Intent(AlarmClock.ACTION_SHOW_ALARMS))
     fun homeSettings() = start(Intent(Settings.ACTION_HOME_SETTINGS))
+
+    /** Befehl aus der Befehlszeile ausführen (Wählen nur über die Telefon-App). */
+    fun run(cmd: Command) {
+        when (cmd) {
+            is Command.Answer -> copy(cmd.value)
+            is Command.Timer -> start(
+                Intent(AlarmClock.ACTION_SET_TIMER)
+                    .putExtra(AlarmClock.EXTRA_LENGTH, cmd.seconds)
+                    .putExtra(AlarmClock.EXTRA_SKIP_UI, false),
+                Intent(AlarmClock.ACTION_SHOW_TIMERS),
+            )
+            is Command.Alarm -> start(
+                Intent(AlarmClock.ACTION_SET_ALARM)
+                    .putExtra(AlarmClock.EXTRA_HOUR, cmd.hour)
+                    .putExtra(AlarmClock.EXTRA_MINUTES, cmd.minute)
+                    .putExtra(AlarmClock.EXTRA_SKIP_UI, false),
+                Intent(AlarmClock.ACTION_SHOW_ALARMS),
+            )
+            // Für die Stoppuhr gibt es keinen Standard-Intent: Uhr-App öffnen.
+            Command.Stopwatch -> start(Intent(AlarmClock.ACTION_SHOW_TIMERS), Intent(AlarmClock.ACTION_SHOW_ALARMS))
+            is Command.Setting -> setting(cmd.page)
+            is Command.Dial -> start(Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", cmd.number, null)))
+            // Erst auf Tippen; Suchmaschine bestimmt die Such-App bzw. der Browser.
+            is Command.WebSearch -> start(
+                Intent(Intent.ACTION_WEB_SEARCH).putExtra(SearchManager.QUERY, cmd.query),
+                Intent(Intent.ACTION_VIEW, "https://duckduckgo.com/?q=${Uri.encode(cmd.query)}".toUri()),
+            )
+        }
+    }
+
+    private fun setting(page: SettingPage) = when (page) {
+        SettingPage.Wifi -> wifiSettings()
+        SettingPage.Bluetooth -> bluetoothSettings()
+        SettingPage.Display -> displaySettings()
+        SettingPage.Sound -> soundSettings()
+        SettingPage.Battery -> batterySettings()
+        SettingPage.Apps -> start(Intent(Settings.ACTION_APPLICATION_SETTINGS), Intent(Settings.ACTION_SETTINGS))
+        SettingPage.Location -> start(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS), Intent(Settings.ACTION_SETTINGS))
+        SettingPage.Notifications -> start(Intent("android.settings.ALL_APPS_NOTIFICATION_SETTINGS"), Intent(Settings.ACTION_SETTINGS))
+        SettingPage.Storage -> storageSettings()
+        SettingPage.Settings -> start(Intent(Settings.ACTION_SETTINGS))
+    }
+
+    private fun copy(text: String) {
+        val cm = context.getSystemService(ClipboardManager::class.java) ?: return
+        cm.setPrimaryClip(ClipData.newPlainText("Mai", text))
+    }
 
     /**
      * Benachrichtigungen aufklappen. Keine öffentliche API; viele Launcher nutzen

@@ -28,7 +28,7 @@
     <string name="rail_state_off">%1$s, aus</string>
 
     <string name="command_hint">SUCHEN ODER BEFEHL</string>
-    <string name="filter_hint">TIPPEN ZUM FILTERN</string>
+    <string name="filter_hint">APP, KONTAKT, 12*7, TIMER 10</string>
     <string name="pick_dock_hint">APP FÜRS DOCK WÄHLEN</string>
     <string name="no_results">Nichts gefunden</string>
 
@@ -85,4 +85,42 @@
     <string name="age_days">%d T</string>
     <string name="setup_mai_widgets">Widgets deiner Mai-Apps</string>
     <string name="setup_mai_widgets_body">Ein Widget je Mai-App. Android fragt einmal: „Immer erlauben“ wählen.</string>
+    <string name="tab_comms">COMMS</string>
+    <plurals name="contacts_count">
+        <item quantity="one">%d KONTAKT</item>
+        <item quantity="other">%d KONTAKTE</item>
+    </plurals>
+    <string name="comms_contacts">Kontakte</string>
+    <string name="comms_allow_body">Lesezugriff auf deine Kontakte zeigt Favoriten und erlaubt die Suche nach Namen. Nichts verlässt das Telefon. Die Wähltastatur geht auch ohne.</string>
+    <string name="comms_allow">ERLAUBEN</string>
+    <string name="comms_favourites">FAVORITEN</string>
+    <string name="comms_frequent">HÄUFIG</string>
+    <string name="comms_all">ALLE KONTAKTE</string>
+    <string name="comms_call">ANRUFEN</string>
+    <string name="comms_text">SMS</string>
+    <string name="comms_contact">KONTAKT</string>
+    <string name="comms_ruf_durch">RUF DURCH</string>
+    <string name="comms_keypad">TASTATUR</string>
+    <string name="comms_delete">Löschen</string>
+    <string name="comms_search_hint">KONTAKTE SUCHEN</string>
+    <string name="cmd_copy">TIPPEN = KOPIEREN</string>
+    <string name="cmd_tag_timer">TIMER</string>
+    <string name="cmd_tag_alarm">WECKER</string>
+    <string name="cmd_tag_clock">UHR</string>
+    <string name="cmd_stopwatch">Stoppuhr</string>
+    <string name="cmd_tag_setting">EINSTELLUNG</string>
+    <string name="cmd_tag_dial">WÄHLEN</string>
+    <string name="cmd_tag_web">WEB</string>
+    <string name="cmd_tag_contact">KONTAKT</string>
+    <string name="cmd_web">Im Web suchen: „%s“</string>
+    <string name="setting_wifi">WLAN</string>
+    <string name="setting_bluetooth">Bluetooth</string>
+    <string name="setting_display">Display</string>
+    <string name="setting_sound">Töne</string>
+    <string name="setting_battery">Akku</string>
+    <string name="setting_apps">Apps</string>
+    <string name="setting_location">Standort</string>
+    <string name="setting_notifications">Benachrichtigungen</string>
+    <string name="setting_storage">Speicher</string>
+    <string name="setting_all">Alle Einstellungen</string>
 </resources>

@@ -30,7 +30,7 @@
     <string name="rail_state_off">%1$s, off</string>
 
     <string name="command_hint">SEARCH OR COMMAND</string>
-    <string name="filter_hint">TYPE TO FILTER</string>
+    <string name="filter_hint">APP, CONTACT, 12*7, TIMER 10</string>
     <string name="pick_dock_hint">PICK AN APP FOR THE DOCK</string>
     <string name="no_results">Nothing found</string>
 
@@ -87,4 +87,42 @@
     <string name="age_days">%d D</string>
     <string name="setup_mai_widgets">Widgets of your Mai apps</string>
     <string name="setup_mai_widgets_body">One widget per Mai app. Android asks once: tick “Always allow”.</string>
+    <string name="tab_comms">COMMS</string>
+    <plurals name="contacts_count">
+        <item quantity="one">%d CONTACT</item>
+        <item quantity="other">%d CONTACTS</item>
+    </plurals>
+    <string name="comms_contacts">Contacts</string>
+    <string name="comms_allow_body">Read access to your contacts shows favourites and lets you search by name. Nothing leaves the phone. The keypad works without it.</string>
+    <string name="comms_allow">ALLOW</string>
+    <string name="comms_favourites">FAVOURITES</string>
+    <string name="comms_frequent">FREQUENT</string>
+    <string name="comms_all">ALL CONTACTS</string>
+    <string name="comms_call">CALL</string>
+    <string name="comms_text">TEXT</string>
+    <string name="comms_contact">CONTACT</string>
+    <string name="comms_ruf_durch">RUF DURCH</string>
+    <string name="comms_keypad">KEYPAD</string>
+    <string name="comms_delete">Delete</string>
+    <string name="comms_search_hint">SEARCH CONTACTS</string>
+    <string name="cmd_copy">TAP TO COPY</string>
+    <string name="cmd_tag_timer">TIMER</string>
+    <string name="cmd_tag_alarm">ALARM</string>
+    <string name="cmd_tag_clock">CLOCK</string>
+    <string name="cmd_stopwatch">Stopwatch</string>
+    <string name="cmd_tag_setting">SETTINGS</string>
+    <string name="cmd_tag_dial">DIAL</string>
+    <string name="cmd_tag_web">WEB</string>
+    <string name="cmd_tag_contact">CONTACT</string>
+    <string name="cmd_web">Search the web for “%s”</string>
+    <string name="setting_wifi">Wi-Fi</string>
+    <string name="setting_bluetooth">Bluetooth</string>
+    <string name="setting_display">Display</string>
+    <string name="setting_sound">Sound</string>
+    <string name="setting_battery">Battery</string>
+    <string name="setting_apps">Apps</string>
+    <string name="setting_location">Location</string>
+    <string name="setting_notifications">Notifications</string>
+    <string name="setting_storage">Storage</string>
+    <string name="setting_all">All settings</string>
 </resources>

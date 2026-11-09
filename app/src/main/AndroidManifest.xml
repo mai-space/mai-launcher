@@ -20,6 +20,10 @@
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <!-- Deinstallieren aus dem App-Menü (öffnet den System-Dialog). -->
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+    <!-- Comms: Kontakte nur lesen, optional. Anrufen über die Telefon-App (ACTION_DIAL). -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <!-- Befehlszeile: „timer 10“, „wecker 6:30“ an die Uhr-App übergeben. -->
+    <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
 
     <!-- Sichtbarkeit: alle startbaren Apps und die Standard-Apps für das Dock. -->
     <queries>
