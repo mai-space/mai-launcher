@@ -26,6 +26,8 @@ class SystemActions(private val context: Context) {
     fun wifiSettings() = start(Intent(Settings.ACTION_WIFI_SETTINGS))
     fun bluetoothSettings() = start(Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
     fun dndSettings() = start(Intent("android.settings.ZEN_MODE_SETTINGS"), Intent(Settings.ACTION_SOUND_SETTINGS))
+    fun policyAccessSettings() = start(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS), Intent(Settings.ACTION_SOUND_SETTINGS))
+    fun soundSettings() = start(Intent(Settings.ACTION_SOUND_SETTINGS))
     fun displaySettings() = start(Intent(Settings.ACTION_DISPLAY_SETTINGS))
     fun batterySettings() = start(Intent(Intent.ACTION_POWER_USAGE_SUMMARY), Intent(Settings.ACTION_SETTINGS))
     fun storageSettings() = start(Intent(Settings.ACTION_INTERNAL_STORAGE_SETTINGS), Intent(Settings.ACTION_SETTINGS))

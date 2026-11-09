@@ -16,6 +16,10 @@ import space.mai.mai_launcher.design.LocalAccent
 import space.mai.mai_launcher.design.MaiBackground
 import space.mai.mai_launcher.domain.AppInfo
 import space.mai.mai_launcher.domain.AppKey
+import space.mai.mai_launcher.domain.CalendarEvent
+import space.mai.mai_launcher.domain.NavInfo
+import space.mai.mai_launcher.domain.NowPlaying
+import space.mai.mai_launcher.domain.SoundMode
 import space.mai.mai_launcher.system.SystemState
 import space.mai.mai_launcher.ui.deck.DeckActions
 import space.mai.mai_launcher.ui.deck.DeckScreen
@@ -87,6 +91,56 @@ class ScreenshotTest {
         }
         compose.onRoot().captureRoboImage("../project-docs/screenshots/01_deck.png")
     }
+
+    @Test fun deckLive() {
+        compose.setContent {
+            Frame {
+                DeckScreen(
+                    DeckState(
+                        system = system.copy(soundMode = SoundMode.Vibrate),
+                        dock = listOf(tile("Phone"), tile("Messages"), tile("Camera"), tile("Browser")),
+                        likely = listOf(tile("Music"), tile("Calendar"), tile("Ruf durch"), tile("Notes")),
+                        likelyWindow = 20 to 22,
+                        appCount = apps.size,
+                        zone = zone,
+                        nowPlaying = NowPlaying("Low Orbit Lullaby", "The Kepler Set", "Music", true, 102_000, 243_000),
+                        navigation = NavInfo("200 m", "Rechts abbiegen auf Hafenstraße", "Ankunft 22:05", "Maps"),
+                        events = listOf(
+                            CalendarEvent(1, "Zahnarzt", at(9, 9, 15), at(9, 10, 0), false),
+                            CalendarEvent(2, "Training mit Sam", at(10, 18, 30), at(10, 20, 0), false),
+                            CalendarEvent(3, "Geburtstag Alex", utc(11), utc(12), true),
+                        ),
+                    ),
+                    DeckActions(),
+                )
+            }
+        }
+        compose.onRoot().captureRoboImage("../project-docs/screenshots/05_deck_live.png")
+    }
+
+    @Test fun deckSetupAndEdit() {
+        compose.setContent {
+            Frame {
+                DeckScreen(
+                    DeckState(
+                        system = system,
+                        dock = listOf(tile("Phone"), tile("Messages"), tile("Camera"), tile("Browser")),
+                        likely = emptyList(),
+                        likelyWindow = 20 to 22,
+                        appCount = apps.size,
+                        zone = zone,
+                        setup = listOf(SetupItem.Home, SetupItem.Signals, SetupItem.Calendar),
+                        destinations = listOf("Hafenstraße 1, Hamburg", ""),
+                        editMode = true,
+                    ),
+                    DeckActions(),
+                )
+            }
+        }
+        compose.onRoot().captureRoboImage("../project-docs/screenshots/06_deck_setup_edit.png")
+    }
+
+    private fun utc(day: Int) = LocalDateTime.of(2026, 11, day, 0, 0).toInstant(java.time.ZoneOffset.UTC).toEpochMilli()
 
     @Test fun deckFirstRun() {
         compose.setContent {

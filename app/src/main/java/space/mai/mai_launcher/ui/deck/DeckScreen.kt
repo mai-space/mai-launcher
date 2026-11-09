@@ -2,6 +2,21 @@ package space.mai.mai_launcher.ui.deck
 
 import android.text.format.DateFormat
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.unit.Velocity
+import space.mai.mai_launcher.domain.CalendarEvent
+import space.mai.mai_launcher.domain.NavInfo
+import space.mai.mai_launcher.domain.NowPlaying
+import space.mai.mai_launcher.ui.SetupItem
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -55,6 +70,10 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.roundToInt
 
+/** Ein eingebautes Android-Widget. */
+@Immutable
+data class WidgetSlot(val id: Int, val label: String, val appLabel: String?, val heightDp: Int)
+
 /** Alles, was das Deck zeigt (reine Daten – testbar ohne Gerät). */
 @Immutable
 data class DeckState(
@@ -65,6 +84,14 @@ data class DeckState(
     val appCount: Int,
     val zone: ZoneId = ZoneId.systemDefault(),
     val use24h: Boolean = true,
+    val setup: List<SetupItem> = emptyList(),
+    val nowPlaying: NowPlaying? = null,
+    val art: ImageBitmap? = null,
+    val navigation: NavInfo? = null,
+    val events: List<CalendarEvent>? = null,
+    val destinations: List<String> = emptyList(),
+    val widgets: List<WidgetSlot> = emptyList(),
+    val editMode: Boolean = false,
 )
 
 /** Aktionen des Decks. */
@@ -78,18 +105,58 @@ class DeckActions(
     val onBattery: () -> Unit = {},
     val onStorage: () -> Unit = {},
     val rail: RailActions = RailActions(),
+    val onSetup: (SetupItem) -> Unit = {},
+    val onDismissSetup: (SetupItem) -> Unit = {},
+    val onEditMode: (Boolean) -> Unit = {},
+    val media: MediaActions = MediaActions(),
+    val onNavigation: () -> Unit = {},
+    val onDestination: (Int) -> Unit = {},
+    val onSetDestination: (Int, String) -> Unit = { _, _ -> },
+    val onEvent: (Long) -> Unit = {},
+    val onCalendar: () -> Unit = {},
+    val onAddWidget: () -> Unit = {},
+    val onMoveWidget: (Int, Int) -> Unit = { _, _ -> },
+    val onRemoveWidget: (Int) -> Unit = {},
+    val widgetContent: @Composable (WidgetSlot) -> Unit = {},
+)
+
+class MediaActions(
+    val elapsedNow: () -> Long = { 0L },
+    val onOpen: () -> Unit = {},
+    val onPrevious: () -> Unit = {},
+    val onPlayPause: () -> Unit = {},
+    val onNext: () -> Unit = {},
 )
 
 @Composable
 fun DeckScreen(state: DeckState, actions: DeckActions, modifier: Modifier = Modifier) {
     val threshold = with(LocalDensity.current) { 72.dp.toPx() }
+    val scroll = rememberScrollState()
+    // Über das Ende der Panels hinaus ziehen = gleiche Gesten wie auf freier Fläche.
+    val overscroll = remember(actions) {
+        object : NestedScrollConnection {
+            var pulled = 0f
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                if (source == NestedScrollSource.UserInput && available.y != 0f) pulled += available.y else if (consumed.y != 0f) pulled = 0f
+                return Offset.Zero
+            }
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                when {
+                    pulled < -threshold -> actions.onSwipeUp()
+                    pulled > threshold -> actions.onSwipeDown()
+                }
+                pulled = 0f
+                return Velocity.Zero
+            }
+        }
+    }
     Row(
         modifier
             .fillMaxSize()
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(start = 14.dp, top = 6.dp, bottom = 8.dp)
-            // Wischen: hoch = alle Apps, runter = Benachrichtigungen.
+            // Wischen: hoch = alle Apps, runter = Benachrichtigungen. Halten = Bearbeiten.
             .pointerInput(Unit) {
                 var total = 0f
                 detectVerticalDragGestures(
@@ -101,19 +168,52 @@ fun DeckScreen(state: DeckState, actions: DeckActions, modifier: Modifier = Modi
                         }
                     },
                 ) { _, dy -> total += dy }
-            },
+            }
+            .pointerInput(Unit) { detectTapGestures(onLongPress = { actions.onEditMode(true) }) },
     ) {
         MainFrame(
             title = stringResource(R.string.tab_deck),
-            meta = pluralStringResource(R.plurals.apps_count, state.appCount, state.appCount),
+            meta = if (state.editMode) stringResource(R.string.edit_mode)
+            else pluralStringResource(R.plurals.apps_count, state.appCount, state.appCount),
             modifier = Modifier.weight(1f).fillMaxHeight(),
         ) {
-            ClockBlock(state, actions.onClock)
-            Spacer(Modifier.height(18.dp))
-            LikelyPanel(state, actions.onApp)
-            Spacer(Modifier.height(12.dp))
-            SystemPanel(state.system, actions.onBattery, actions.onStorage)
-            Spacer(Modifier.weight(1f))
+            ClockBlock(state, actions.onClock, onLongClock = { actions.onEditMode(true) })
+            Spacer(Modifier.height(14.dp))
+            Column(
+                Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .nestedScroll(overscroll)
+                    .verticalScroll(scroll),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                if (state.editMode) EditBar(actions)
+                if (state.setup.isNotEmpty()) SetupPanel(state.setup, actions.onSetup, actions.onDismissSetup)
+                state.navigation?.let { NavigationPanel(it, actions.onNavigation) }
+                state.nowPlaying?.let {
+                    MediaPanel(it, state.art, actions.media.elapsedNow, actions.media.onOpen,
+                        actions.media.onPrevious, actions.media.onPlayPause, actions.media.onNext)
+                }
+                state.events?.let {
+                    EventsPanel(it, state.system.nowMillis, state.zone, state.use24h, actions.onEvent, actions.onCalendar)
+                }
+                if (state.editMode || state.destinations.any { it.isNotBlank() }) {
+                    DestinationsPanel(state.destinations, state.editMode, actions.onDestination, actions.onSetDestination)
+                }
+                LikelyPanel(state, actions.onApp)
+                state.widgets.forEach { w ->
+                    WidgetPanel(
+                        w, state.editMode,
+                        onUp = { actions.onMoveWidget(w.id, -1) },
+                        onDown = { actions.onMoveWidget(w.id, 1) },
+                        onRemove = { actions.onRemoveWidget(w.id) },
+                        content = actions.widgetContent,
+                    )
+                }
+                SystemPanel(state.system, actions.onBattery, actions.onStorage)
+                Spacer(Modifier.height(4.dp))
+            }
+            Spacer(Modifier.height(8.dp))
             GripLine()
             Spacer(Modifier.height(10.dp))
             Dock(state.dock, actions.onApp, actions.onDockLongPress)
@@ -125,7 +225,17 @@ fun DeckScreen(state: DeckState, actions: DeckActions, modifier: Modifier = Modi
 }
 
 @Composable
-private fun ClockBlock(state: DeckState, onClock: () -> Unit) {
+private fun EditBar(actions: DeckActions) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        EditChip("+ " + stringResource(R.string.widget_add), actions.onAddWidget)
+        Spacer(Modifier.weight(1f))
+        EditChip(stringResource(R.string.edit_done), { actions.onEditMode(false) })
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ClockBlock(state: DeckState, onClock: () -> Unit, onLongClock: () -> Unit) {
     val locale = currentLocale()
     val now = ZonedDateTime.ofInstant(Instant.ofEpochMilli(state.system.nowMillis), state.zone)
     val timeFmt = remember(state.use24h) { DateTimeFormatter.ofPattern(if (state.use24h) "HH:mm" else "h:mm") }
@@ -133,7 +243,7 @@ private fun ClockBlock(state: DeckState, onClock: () -> Unit) {
     Column(
         Modifier
             .fillMaxWidth()
-            .clickable(role = Role.Button, onClick = onClock)
+            .combinedClickable(role = Role.Button, onClick = onClock, onLongClick = onLongClock)
             .padding(top = 8.dp),
     ) {
         MaiText(now.format(timeFmt), MaiType.Clock)
