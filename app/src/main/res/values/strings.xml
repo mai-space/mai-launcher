@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">Mai Launcher</string>
+
+    <string name="tab_deck">DECK</string>
+    <string name="tab_index">INDEX</string>
+
+    <plurals name="apps_count">
+        <item quantity="one">%d APP</item>
+        <item quantity="other">%d APPS</item>
+    </plurals>
+
+    <string name="alarm_label">ALARM %1$s</string>
+    <string name="alarm_none">NO ALARM</string>
+
+    <string name="panel_likely_now">Likely now</string>
+    <string name="panel_likely_window">%1$s–%2$s h</string>
+    <string name="panel_likely_learning">Learns from your launches. Nothing leaves the phone.</string>
+    <string name="battery">Battery</string>
+    <string name="battery_charging">CHARGING</string>
+    <string name="storage">Storage</string>
+    <string name="storage_free">FREE</string>
+
+    <string name="rail_wifi">WIFI</string>
+    <string name="rail_bluetooth">BT</string>
+    <string name="rail_dnd">DND</string>
+    <string name="rail_torch">LIGHT</string>
+    <string name="rail_rotate">ROTATE</string>
+    <string name="rail_state_on">%1$s, on</string>
+    <string name="rail_state_off">%1$s, off</string>
+
+    <string name="command_hint">SEARCH OR COMMAND</string>
+    <string name="filter_hint">TYPE TO FILTER</string>
+    <string name="pick_dock_hint">PICK AN APP FOR THE DOCK</string>
+    <string name="no_results">Nothing found</string>
+
+    <string name="dock_slot_empty">Empty dock slot, hold to choose an app</string>
+    <string name="action_app_info">App info</string>
+    <string name="action_uninstall">Uninstall</string>
+    <string name="work_badge">WORK</string>
+</resources>

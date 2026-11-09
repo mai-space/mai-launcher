@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tab_deck">DECK</string>
+    <string name="tab_index">INDEX</string>
+
+    <plurals name="apps_count">
+        <item quantity="one">%d APP</item>
+        <item quantity="other">%d APPS</item>
+    </plurals>
+
+    <string name="alarm_label">WECKER %1$s</string>
+    <string name="alarm_none">KEIN WECKER</string>
+
+    <string name="panel_likely_now">Jetzt wahrscheinlich</string>
+    <string name="panel_likely_window">%1$s–%2$s Uhr</string>
+    <string name="panel_likely_learning">Lernt aus deinen Starts. Nichts verlässt das Handy.</string>
+    <string name="battery">Akku</string>
+    <string name="battery_charging">LÄDT</string>
+    <string name="storage">Speicher</string>
+    <string name="storage_free">FREI</string>
+
+    <string name="rail_wifi">WLAN</string>
+    <string name="rail_bluetooth">BT</string>
+    <string name="rail_dnd">RUHE</string>
+    <string name="rail_torch">LICHT</string>
+    <string name="rail_rotate">DREHEN</string>
+    <string name="rail_state_on">%1$s, an</string>
+    <string name="rail_state_off">%1$s, aus</string>
+
+    <string name="command_hint">SUCHEN ODER BEFEHL</string>
+    <string name="filter_hint">TIPPEN ZUM FILTERN</string>
+    <string name="pick_dock_hint">APP FÜRS DOCK WÄHLEN</string>
+    <string name="no_results">Nichts gefunden</string>
+
+    <string name="dock_slot_empty">Freier Dock-Platz, halten zum Wählen</string>
+    <string name="action_app_info">App-Info</string>
+    <string name="action_uninstall">Deinstallieren</string>
+    <string name="work_badge">ARBEIT</string>
+</resources>
