@@ -24,6 +24,28 @@ class LauncherPrefs(context: Context) {
         _dock.value = readDock()
     }
 
+    private val _destinations = MutableStateFlow(readDestinations())
+    /** Schnellziele für die Navigation: [0] = Zuhause, [1] = Arbeit (Adresse als Text). */
+    val destinations: StateFlow<List<String>> = _destinations.asStateFlow()
+
+    private fun readDestinations() = listOf(prefs.getString("dest_home", "").orEmpty(), prefs.getString("dest_work", "").orEmpty())
+
+    fun setDestination(index: Int, address: String) {
+        val key = when (index) { 0 -> "dest_home"; 1 -> "dest_work"; else -> return }
+        prefs.edit { putString(key, address.trim()) }
+        _destinations.value = readDestinations()
+    }
+
+    private val _dismissed = MutableStateFlow(prefs.getStringSet("setup_dismissed", emptySet()).orEmpty())
+    /** Einrichtungs-Hinweise, die der Nutzer weggeklickt hat. */
+    val dismissedSetup: StateFlow<Set<String>> = _dismissed.asStateFlow()
+
+    fun dismissSetup(id: String) {
+        val next = _dismissed.value + id
+        prefs.edit { putStringSet("setup_dismissed", next) }
+        _dismissed.value = next
+    }
+
     companion object {
         const val DOCK_SLOTS = 4
     }

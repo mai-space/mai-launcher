@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -177,6 +178,7 @@ fun HexToken(
     size: Dp = 44.dp,
     text: String? = null,
     icon: ImageBitmap? = null,
+    glyph: (DrawScope.(Color) -> Unit)? = null,
     color: Color = LocalAccent.current.main,
     filled: Boolean = true,
     badge: String? = null,
@@ -217,6 +219,7 @@ fun HexToken(
             contentAlignment = Alignment.Center,
         ) {
             when {
+                glyph != null -> Canvas(Modifier.size(size * 0.46f)) { glyph(color) }
                 icon != null -> Image(
                     icon,
                     contentDescription = null,

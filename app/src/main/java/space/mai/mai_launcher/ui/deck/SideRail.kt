@@ -21,6 +21,7 @@ import space.mai.mai_launcher.design.HexToken
 import space.mai.mai_launcher.design.LocalAccent
 import space.mai.mai_launcher.design.MaiColors
 import space.mai.mai_launcher.design.MaiLabel
+import space.mai.mai_launcher.domain.SoundMode
 import space.mai.mai_launcher.system.SystemState
 
 /** Aktionen der Seitenleiste: Tippen = Panel/Schalter, Halten = volle Einstellung. */
@@ -29,6 +30,9 @@ class RailActions(
     val onWifiLong: () -> Unit = {},
     val onBluetooth: () -> Unit = {},
     val onDnd: () -> Unit = {},
+    val onDndLong: () -> Unit = {},
+    val onSound: () -> Unit = {},
+    val onSoundLong: () -> Unit = {},
     val onTorch: () -> Unit = {},
     val onRotate: () -> Unit = {},
 )
@@ -41,7 +45,16 @@ fun SideRail(sys: SystemState, actions: RailActions, modifier: Modifier = Modifi
     val items = buildList {
         add(RailItem(stringResource(R.string.rail_wifi), sys.wifiConnected, actions.onWifi, actions.onWifiLong))
         add(RailItem(stringResource(R.string.rail_bluetooth), sys.bluetoothOn == true, actions.onBluetooth))
-        add(RailItem(stringResource(R.string.rail_dnd), sys.dndOn, actions.onDnd))
+        // Tonmodus: hervorgehoben, wenn nicht „Klingeln“. Antippen schaltet weiter.
+        val soundLabel = stringResource(
+            when (sys.soundMode) {
+                SoundMode.Ring -> R.string.rail_sound_ring
+                SoundMode.Vibrate -> R.string.rail_sound_vibrate
+                SoundMode.Mute -> R.string.rail_sound_mute
+            },
+        )
+        add(RailItem(soundLabel, sys.soundMode != SoundMode.Ring, actions.onSound, actions.onSoundLong))
+        add(RailItem(stringResource(R.string.rail_dnd), sys.dndOn, actions.onDnd, actions.onDndLong))
         if (sys.torchAvailable) add(RailItem(stringResource(R.string.rail_torch), sys.torchOn, actions.onTorch))
         add(RailItem(stringResource(R.string.rail_rotate), sys.autoRotate, actions.onRotate))
     }

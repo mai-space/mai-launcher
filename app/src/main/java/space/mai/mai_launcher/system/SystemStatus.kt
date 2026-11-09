@@ -23,6 +23,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import space.mai.mai_launcher.domain.SoundMode
+import android.media.AudioManager
 
 /** Alles, was Deck und Seitenleiste vom System zeigen – nur echte Werte. */
 data class SystemState(
@@ -38,6 +40,7 @@ data class SystemState(
     val torchAvailable: Boolean = false,
     val torchOn: Boolean = false,
     val autoRotate: Boolean = false,
+    val soundMode: SoundMode = SoundMode.Ring,
 )
 
 /**
@@ -53,6 +56,7 @@ class SystemStatus(private val context: Context) {
     private val notificationManager = context.getSystemService(NotificationManager::class.java)
     private val connectivity = context.getSystemService(ConnectivityManager::class.java)
     private val cameraManager = context.getSystemService(CameraManager::class.java)
+    private val audio = context.getSystemService(AudioManager::class.java)
     private val torchCameraId: String? = runCatching {
         cameraManager.cameraIdList.firstOrNull {
             cameraManager.getCameraCharacteristics(it).get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
@@ -94,6 +98,7 @@ class SystemStatus(private val context: Context) {
             addAction(Intent.ACTION_BATTERY_CHANGED)
             addAction(AlarmManager.ACTION_NEXT_ALARM_CLOCK_CHANGED)
             addAction(NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED)
+            addAction(AudioManager.RINGER_MODE_CHANGED_ACTION)
             addAction("android.bluetooth.adapter.action.STATE_CHANGED")
         }
         // Systemsendungen; NOT_EXPORTED genügt, da sie vom System kommen.
@@ -138,6 +143,7 @@ class SystemStatus(private val context: Context) {
                 dndOn = dnd,
                 torchAvailable = torchCameraId != null,
                 autoRotate = rotate,
+                soundMode = SoundMode.of(audio.ringerMode),
             )
         }
     }
@@ -155,6 +161,30 @@ class SystemStatus(private val context: Context) {
         val pct = if (level >= 0 && scale > 0) level * 100 / scale else null
         val charging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
         _state.update { it.copy(batteryPercent = pct, charging = charging) }
+    }
+
+    /** Darf der Launcher „Nicht stören“ und Stumm schalten? (Nutzer-Freigabe nötig.) */
+    fun hasPolicyAccess(): Boolean = notificationManager.isNotificationPolicyAccessGranted
+
+    /**
+     * Tonmodus weiterschalten (Klingeln → Vibrieren → Stumm). Stumm braucht seit
+     * Android 7 die „Nicht stören“-Freigabe; ohne sie liefert die Funktion false.
+     */
+    fun cycleSound(): Boolean {
+        val next = _state.value.soundMode.next()
+        if (next == SoundMode.Mute && !hasPolicyAccess()) return false
+        val ok = runCatching { audio.ringerMode = next.ringerMode }.isSuccess
+        refresh()
+        return ok
+    }
+
+    /** „Nicht stören“ direkt umschalten (mit Freigabe), sonst false. */
+    fun toggleDnd(): Boolean {
+        if (!hasPolicyAccess()) return false
+        val target = if (_state.value.dndOn) NotificationManager.INTERRUPTION_FILTER_ALL else NotificationManager.INTERRUPTION_FILTER_PRIORITY
+        runCatching { notificationManager.setInterruptionFilter(target) }
+        refresh()
+        return true
     }
 
     /** Taschenlampe direkt schalten (ohne Kamera-Berechtigung möglich). */

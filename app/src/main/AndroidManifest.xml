@@ -12,6 +12,10 @@
     <uses-permission
         android:name="android.permission.BLUETOOTH"
         android:maxSdkVersion="30" />
+    <!-- Stumm und „Nicht stören“ aus der Seitenleiste schalten (Nutzer gibt frei). -->
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+    <!-- Kommende Termine (optional, nur lesen). -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
     <!-- Deinstallieren aus dem App-Menü (öffnet den System-Dialog). -->
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
 
@@ -20,6 +24,11 @@
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <!-- Kalender-App für Termine, Karten-App für Schnellziele. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="geo" />
         </intent>
         <intent>
             <action android:name="android.intent.action.DIAL" />
@@ -69,5 +78,16 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Benachrichtigungszugriff (optional): Musiksteuerung und laufende Navigation. -->
+        <service
+            android:name=".signals.MaiNotificationListener"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>
