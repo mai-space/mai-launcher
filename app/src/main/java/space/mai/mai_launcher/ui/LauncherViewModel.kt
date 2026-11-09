@@ -31,6 +31,9 @@ import space.mai.mai_launcher.data.LaunchLog
 import space.mai.mai_launcher.feeds.FeedRepository
 import space.mai.mai_launcher.feedback.FeedbackPlayer
 import space.mai.mai_launcher.domain.FeedbackKind
+import space.mai.mai_launcher.domain.LayoutBackup
+import space.mai.mai_launcher.domain.LayoutBackupCodec
+import space.mai.mai_launcher.ui.settings.BackupStatus
 import space.mai.mai_launcher.ui.settings.DockSlot
 import space.mai.mai_launcher.data.LauncherPrefs
 import space.mai.mai_launcher.domain.AppInfo
@@ -58,6 +61,8 @@ interface LauncherHost {
     fun startSystemSpeech()
     fun openNotificationAccess()
     fun bindWidget(id: Int, provider: ComponentName)
+    fun exportLayout(fileName: String, text: String)
+    fun importLayout()
     fun configureWidget(id: Int)
 }
 
@@ -232,6 +237,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun openSettings() {
         _editMode.value = false
+        _backupStatus.value = null
         _screen.value = Screen.Settings
         refreshAccess()
     }
@@ -273,6 +279,62 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun settingsContacts() {
         if (_access.value.contacts) actions.launcherInfo() else host?.requestContacts()
+    }
+
+    // --- Sicherung von Layout und Einstellungen ---
+
+    /** Rückmeldung nach Export/Import für die Einstellungen (null = nichts anzeigen). */
+    private val _backupStatus = MutableStateFlow<BackupStatus?>(null)
+    val backupStatus: StateFlow<BackupStatus?> = _backupStatus.asStateFlow()
+
+    fun exportLayout() {
+        val providers = widgets.ids.value.mapNotNull { id ->
+            widgets.info(id)?.provider?.let { ProviderRef(it.packageName, it.className) }
+        }
+        val backup = LayoutBackup(
+            dock = prefs.dock.value,
+            destinations = prefs.destinations.value,
+            feeds = feeds.state.value.urls,
+            widgets = providers,
+            signalsShowText = prefs.signalsShowText.value,
+            haptics = prefs.haptics.value,
+            sounds = prefs.sounds.value,
+        )
+        host?.exportLayout(LayoutBackupCodec.fileName(java.time.LocalDate.now()), LayoutBackupCodec.encode(backup))
+    }
+
+    fun onLayoutExported(ok: Boolean) {
+        _backupStatus.value = if (ok) BackupStatus.Exported else BackupStatus.Failed
+    }
+
+    fun importLayout() { host?.importLayout() }
+
+    /** Sicherung anwenden: Dock, Ziele, Feeds, Einstellungen sofort; Widgets über die Freigabe-Dialoge. */
+    fun onLayoutImported(text: String?) {
+        val b = text?.let(LayoutBackupCodec::decode)
+        if (b == null || b.isEmpty) { _backupStatus.value = BackupStatus.Failed; return }
+        val dock = LayoutBackupCodec.resolveDock(b.dock, apps.value)
+        dock.forEachIndexed { i, k -> if (b.dock.getOrNull(i) != null) prefs.setDockSlot(i, k) }
+        b.destinations.forEachIndexed { i, d -> if (d.isNotBlank()) prefs.setDestination(i, d) }
+        if (b.feeds.isNotEmpty()) feeds.replaceAll((feeds.state.value.urls + b.feeds).distinct())
+        b.signalsShowText?.let(prefs::setSignalsShowText)
+        b.haptics?.let(prefs::setHaptics)
+        b.sounds?.let(prefs::setSounds)
+        // Nur installierte Widgets, die noch nicht auf dem Deck sind.
+        val installed = widgets.installedRefs().toSet()
+        val placed = widgets.ids.value.mapNotNull { id ->
+            widgets.info(id)?.provider?.let { ProviderRef(it.packageName, it.className) }
+        }.toSet()
+        val todo = b.widgets.filter { it in installed && it !in placed }
+        _backupStatus.value = BackupStatus.Imported(
+            dock = dock.count { it != null },
+            feeds = b.feeds.size,
+            widgets = todo.size,
+        )
+        if (todo.isNotEmpty() && pendingWidget == null) {
+            maiQueue = ArrayDeque(todo)
+            nextMaiWidget()
+        }
     }
 
     // --- Media ---

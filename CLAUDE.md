@@ -39,6 +39,10 @@ Systemsprache. Paket `space.mai.mai_launcher`, CI-Artefakt `mai-launcher.apk`.
   `widgets`, `feeds`, `mai_widgets_seen`, `comms_log`, `signals_show_text`, `feedback_haptics`, `feedback_sounds`) tolerant lesen,
   Schlüssel nie umbenennen.
 
+- **Layout-Sicherung** (`LayoutBackupCodec`, Kopf `mai-launcher-layout v1`,
+  Datei über das Speicherzugriffs-Framework): nur erweitern, unbekannte
+  Schlüssel überspringen. Enthält nie Startverlauf, Comms-Verlauf, Kontakte
+  oder Benachrichtigungen (Test `containsNoHistoryOrContacts`).
 - **Rückmeldung** (`domain/Feedback.kt`): `HapticLevel`/`SoundLevel` werden
   als Index gespeichert – nur am Ende erweitern. Töne werden zur Laufzeit
   erzeugt (keine Audiodateien), nur bei Klingelton „an“.

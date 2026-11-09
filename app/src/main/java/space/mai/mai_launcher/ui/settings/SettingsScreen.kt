@@ -49,6 +49,14 @@ import space.mai.mai_launcher.ui.deck.EditChip
 @Immutable
 data class DockSlot(val tile: AppTile?, val custom: Boolean)
 
+/** Ergebnis von Export/Import. */
+@Immutable
+sealed interface BackupStatus {
+    data object Exported : BackupStatus
+    data object Failed : BackupStatus
+    data class Imported(val dock: Int, val feeds: Int, val widgets: Int) : BackupStatus
+}
+
 /** Alles, was die Launcher-Einstellungen zeigen (reine Daten). */
 @Immutable
 data class SettingsState(
@@ -63,6 +71,7 @@ data class SettingsState(
     val widgetCount: Int = 0,
     val feedCount: Int = 0,
     val version: String = "",
+    val backup: BackupStatus? = null,
 )
 
 class SettingsActions(
@@ -79,6 +88,8 @@ class SettingsActions(
     val onContacts: () -> Unit = {},
     val onSystemSettings: () -> Unit = {},
     val onAppInfo: () -> Unit = {},
+    val onExport: () -> Unit = {},
+    val onImport: () -> Unit = {},
     val onClose: () -> Unit = {},
 )
 
@@ -134,6 +145,21 @@ fun SettingsScreen(state: SettingsState, actions: SettingsActions, modifier: Mod
                         access(state.calendar), actions.onCalendar, on = state.calendar)
                     SettingRow(stringResource(R.string.settings_contacts), stringResource(R.string.settings_contacts_body),
                         access(state.contacts), actions.onContacts, on = state.contacts)
+                }
+                MaiPanel(stringResource(R.string.settings_backup), Modifier.fillMaxWidth()) {
+                    SettingRow(stringResource(R.string.settings_export), stringResource(R.string.settings_export_body),
+                        stringResource(R.string.settings_save), actions.onExport)
+                    SettingRow(stringResource(R.string.settings_import), stringResource(R.string.settings_import_body),
+                        stringResource(R.string.settings_open), actions.onImport)
+                    state.backup?.let { b ->
+                        val (text, color) = when (b) {
+                            BackupStatus.Exported -> stringResource(R.string.settings_backup_exported) to LocalAccent.current.main
+                            BackupStatus.Failed -> stringResource(R.string.settings_backup_failed) to MaiColors.Amber
+                            is BackupStatus.Imported -> stringResource(R.string.settings_backup_imported, b.dock, b.feeds, b.widgets) to LocalAccent.current.main
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        MaiText(text, MaiType.Body, color = color, maxLines = 3)
+                    }
                 }
                 MaiPanel(stringResource(R.string.settings_system), Modifier.fillMaxWidth()) {
                     SettingRow(stringResource(R.string.settings_android), null, stringResource(R.string.settings_open), actions.onSystemSettings)

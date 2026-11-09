@@ -182,4 +182,13 @@
     <string name="settings_system">System</string>
     <string name="settings_widgets_count">%1$d auf dem Deck</string>
     <string name="settings_add_widget">Widget hinzufügen</string>
+    <string name="settings_backup">Sicherung</string>
+    <string name="settings_export">Layout exportieren</string>
+    <string name="settings_export_body">Dock, Deck-Widgets, Feeds, Ziele und Einstellungen als Textdatei. Ohne Startverlauf, Kontakte oder Benachrichtigungen.</string>
+    <string name="settings_import">Layout importieren</string>
+    <string name="settings_import_body">Aus so einer Datei wiederherstellen, auch auf einem neuen Handy. Widgets fragen einmal nach der Freigabe.</string>
+    <string name="settings_save">SPEICHERN</string>
+    <string name="settings_backup_exported">Layout gespeichert.</string>
+    <string name="settings_backup_failed">Das hat nicht geklappt. Ist es eine Layout-Datei des Launchers?</string>
+    <string name="settings_backup_imported">Importiert: %1$d Dock-Apps, %2$d Feeds, %3$d Widgets zum Hinzufügen.</string>
 </resources>

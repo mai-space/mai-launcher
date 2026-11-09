@@ -50,6 +50,12 @@ class FeedRepository(context: Context, private val scope: CoroutineScope) {
         return true
     }
 
+    /** Feeds ersetzen (Wiederherstellen einer Sicherung). */
+    fun replaceAll(urls: List<String>) {
+        save(urls.mapNotNull { FeedUrls.normalize(it) }.distinct())
+        refresh(force = true)
+    }
+
     fun remove(url: String) {
         save(_state.value.urls - url)
         refresh(force = true)

@@ -27,7 +27,9 @@ default, nothing stored); voice input from the mic in the command line
 sound mode (ring/vibrate/mute), DND, torch and rotation, plus ALERTS (opens
 the notification shade) and SETUP: launcher settings for the dock apps,
 arranging the deck, vibration and sounds (off by default, only with the
-ringer on) and access. The Deck has no vertical swipes, so panels and widgets
+ringer on), access, and export/import of the layout as a small text file
+(dock, widgets, feeds, destinations, settings; never app history or
+contacts). The Deck has no vertical swipes, so panels and widgets
 scroll freely; search opens from the search bar. Every permission is
 optional and asked for from a "Set up" panel.
 Next: lock-screen and gesture polish, more command verbs.

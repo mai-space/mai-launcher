@@ -42,6 +42,24 @@ class MainActivity : ComponentActivity(), LauncherHost {
         val text = r.data?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
         vm.onSpeechResult(text)
     }
+    /** Sicherung: Datei anlegen bzw. öffnen (Speicherzugriffs-Framework, keine Berechtigung). */
+    private var pendingExport: String? = null
+    private val exportDoc = registerForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
+        val text = pendingExport
+        pendingExport = null
+        if (uri == null || text == null) return@registerForActivityResult
+        val ok = runCatching { contentResolver.openOutputStream(uri, "wt")!!.use { it.write(text.toByteArray()) } }.isSuccess
+        vm.onLayoutExported(ok)
+    }
+    private val importDoc = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@registerForActivityResult
+        // Sicherungen sind klein; größere Dateien gar nicht erst lesen.
+        val text = runCatching {
+            contentResolver.openInputStream(uri)!!.use { String(it.readNBytesCompat(MAX_LAYOUT_BYTES)) }
+        }.getOrNull()
+        vm.onLayoutImported(text)
+    }
+
     private val widgetBind = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         vm.onWidgetBound(it.resultCode == RESULT_OK)
     }
@@ -121,6 +139,16 @@ class MainActivity : ComponentActivity(), LauncherHost {
         runCatching { widgetBind.launch(intent) }.onFailure { vm.onWidgetBound(false) }
     }
 
+    override fun exportLayout(fileName: String, text: String) {
+        pendingExport = text
+        runCatching { exportDoc.launch(fileName) }.onFailure { vm.onLayoutExported(false) }
+    }
+
+    override fun importLayout() {
+        runCatching { importDoc.launch(arrayOf("text/plain", "application/octet-stream")) }
+            .onFailure { vm.onLayoutImported(null) }
+    }
+
     override fun configureWidget(id: Int) {
         if (!vm.widgets.configureLauncher(this, id, REQUEST_CONFIGURE)) vm.onWidgetConfigured(false)
     }
@@ -134,5 +162,18 @@ class MainActivity : ComponentActivity(), LauncherHost {
 
     private companion object {
         const val REQUEST_CONFIGURE = 4711
+        const val MAX_LAYOUT_BYTES = 256 * 1024
+    }
+
+    /** Liest höchstens [max] Bytes (readNBytes gibt es erst ab API 33). */
+    private fun java.io.InputStream.readNBytesCompat(max: Int): ByteArray {
+        val out = java.io.ByteArrayOutputStream()
+        val buf = ByteArray(8192)
+        while (out.size() < max) {
+            val n = read(buf, 0, minOf(buf.size, max - out.size()))
+            if (n < 0) break
+            out.write(buf, 0, n)
+        }
+        return out.toByteArray()
     }
 }
