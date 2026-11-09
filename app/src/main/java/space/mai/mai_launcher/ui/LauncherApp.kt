@@ -26,6 +26,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import space.mai.mai_launcher.design.Accents
 import space.mai.mai_launcher.design.LocalAccent
+import space.mai.mai_launcher.design.LocalFeedback
+import space.mai.mai_launcher.ui.settings.SettingsActions
+import space.mai.mai_launcher.ui.settings.SettingsScreen
+import space.mai.mai_launcher.ui.settings.SettingsState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import space.mai.mai_launcher.design.MaiBackground
 import space.mai.mai_launcher.domain.ContactRanking
 import space.mai.mai_launcher.ui.comms.CommsActions
@@ -84,6 +91,9 @@ fun LauncherApp(vm: LauncherViewModel) {
     val listening by vm.voice.listening.collectAsStateWithLifecycle()
     val queue by vm.media.queue.collectAsStateWithLifecycle()
     val musicApps by vm.musicApps.collectAsStateWithLifecycle()
+    val settingsDock by vm.settingsDock.collectAsStateWithLifecycle()
+    val haptics by vm.haptics.collectAsStateWithLifecycle()
+    val sounds by vm.sounds.collectAsStateWithLifecycle()
     val use24h = systemUses24h()
 
     val artBitmap = remember(art) { art?.asImageBitmap() }
@@ -103,13 +113,11 @@ fun LauncherApp(vm: LauncherViewModel) {
             onApp = { vm.onAppTapped(it.key) },
             onDockLongPress = vm::startPickingDock,
             onCommand = { vm.openIndex(withKeyboard = true) },
-            onSwipeUp = { vm.openIndex(withKeyboard = false) },
             onSwipeRight = vm::openComms,
             onSwipeLeft = vm::openMedia,
             onMic = vm::startVoice,
             onSignal = vm::openSignal,
             onToggleSignalText = vm::toggleSignalText,
-            onSwipeDown = vm.actions::expandNotifications,
             onClock = vm.actions::alarms,
             onBattery = vm.actions::batterySettings,
             onStorage = vm.actions::storageSettings,
@@ -123,6 +131,8 @@ fun LauncherApp(vm: LauncherViewModel) {
                 onSoundLong = vm.actions::soundSettings,
                 onTorch = vm.system::toggleTorch,
                 onRotate = vm.actions::displaySettings,
+                onNotifications = vm.actions::expandNotifications,
+                onSettings = vm::openSettings,
             ),
             onSetup = vm::onSetup,
             onDismissSetup = vm::dismissSetup,
@@ -194,9 +204,39 @@ fun LauncherApp(vm: LauncherViewModel) {
         )
     }
 
+    val settingsActions = remember(vm) {
+        SettingsActions(
+            onDockSlot = vm::pickDockFromSettings,
+            onDockReset = vm::resetDock,
+            onArrangeDeck = vm::arrangeDeck,
+            onAddWidget = vm::openWidgetPicker,
+            onToggleSignalText = vm::toggleSignalText,
+            onHaptics = vm::cycleHaptics,
+            onSounds = vm::cycleSounds,
+            onHome = vm::settingsHome,
+            onNotifications = { vm.host?.openNotificationAccess() },
+            onCalendar = vm::settingsCalendar,
+            onContacts = vm::settingsContacts,
+            onSystemSettings = vm.actions::systemSettings,
+            onAppInfo = vm.actions::launcherInfo,
+            onClose = vm::onBack,
+        )
+    }
+
+    // Leiser Ton/Ticken beim Wechsel des Bildschirms (nicht beim ersten Anzeigen).
+    var lastScreen by remember { mutableStateOf(screen) }
+    LaunchedEffect(screen) {
+        if (screen != lastScreen) vm.feedback.open()
+        lastScreen = screen
+    }
+
     BackHandler(enabled = screen != Screen.Deck || editMode) { vm.onBack() }
 
-    CompositionLocalProvider(LocalAccent provides Accents.Ion, LocalIconProvider provides iconProvider) {
+    CompositionLocalProvider(
+        LocalAccent provides Accents.Ion,
+        LocalIconProvider provides iconProvider,
+        LocalFeedback provides vm.feedback,
+    ) {
         MaiBackground {
             AnimatedContent(
                 targetState = screen,
@@ -249,6 +289,22 @@ fun LauncherApp(vm: LauncherViewModel) {
                         focusSignal = focus,
                     )
                     Screen.Widgets -> WidgetPicker(vm)
+                    Screen.Settings -> SettingsScreen(
+                        SettingsState(
+                            dock = settingsDock,
+                            isHome = access.home,
+                            signals = access.signals,
+                            calendar = access.calendar,
+                            contacts = access.contacts,
+                            signalsShowText = signalsText,
+                            haptics = haptics,
+                            sounds = sounds,
+                            widgetCount = widgetIds.size,
+                            feedCount = news.urls.size,
+                            version = vm.version,
+                        ),
+                        settingsActions,
+                    )
                     Screen.Media -> CompositionLocalProvider(LocalAccent provides Accents.Amber) {
                         MediaScreen(
                             MediaState(

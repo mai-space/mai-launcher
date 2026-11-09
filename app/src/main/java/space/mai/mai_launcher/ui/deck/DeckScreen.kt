@@ -7,19 +7,13 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.unit.Velocity
 import space.mai.mai_launcher.domain.CalendarEvent
 import space.mai.mai_launcher.domain.NavInfo
 import space.mai.mai_launcher.domain.NowPlaying
 import space.mai.mai_launcher.ui.SetupItem
 import space.mai.mai_launcher.feeds.FeedState
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -109,13 +103,11 @@ class DeckActions(
     val onApp: (AppTile) -> Unit = {},
     val onDockLongPress: (Int) -> Unit = {},
     val onCommand: () -> Unit = {},
-    val onSwipeUp: () -> Unit = {},
     val onSwipeRight: () -> Unit = {},
     val onSwipeLeft: () -> Unit = {},
     val onMic: () -> Unit = {},
     val onSignal: (String) -> Unit = {},
     val onToggleSignalText: () -> Unit = {},
-    val onSwipeDown: () -> Unit = {},
     val onClock: () -> Unit = {},
     val onBattery: () -> Unit = {},
     val onStorage: () -> Unit = {},
@@ -151,43 +143,14 @@ class MediaActions(
 fun DeckScreen(state: DeckState, actions: DeckActions, modifier: Modifier = Modifier) {
     val threshold = with(LocalDensity.current) { 72.dp.toPx() }
     val scroll = rememberScrollState()
-    // Über das Ende der Panels hinaus ziehen = gleiche Gesten wie auf freier Fläche.
-    val overscroll = remember(actions) {
-        object : NestedScrollConnection {
-            var pulled = 0f
-            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-                if (source == NestedScrollSource.UserInput && available.y != 0f) pulled += available.y else if (consumed.y != 0f) pulled = 0f
-                return Offset.Zero
-            }
-            override suspend fun onPreFling(available: Velocity): Velocity {
-                when {
-                    pulled < -threshold -> actions.onSwipeUp()
-                    pulled > threshold -> actions.onSwipeDown()
-                }
-                pulled = 0f
-                return Velocity.Zero
-            }
-        }
-    }
     Row(
         modifier
             .fillMaxSize()
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(start = 14.dp, top = 6.dp, bottom = 8.dp)
-            // Wischen: hoch = alle Apps, runter = Benachrichtigungen. Halten = Bearbeiten.
-            .pointerInput(Unit) {
-                var total = 0f
-                detectVerticalDragGestures(
-                    onDragStart = { total = 0f },
-                    onDragEnd = {
-                        when {
-                            total < -threshold -> actions.onSwipeUp()
-                            total > threshold -> actions.onSwipeDown()
-                        }
-                    },
-                ) { _, dy -> total += dy }
-            }
+            // Kein Wischen hoch/runter: das gehört dem Scrollen (Panels, Widgets).
+            // Suche über die Befehlszeile, Benachrichtigungen über die Seitenleiste.
             // Nach rechts wischen = Comms, nach links = Media.
             .pointerInput(Unit) {
                 var total = 0f
@@ -215,7 +178,6 @@ fun DeckScreen(state: DeckState, actions: DeckActions, modifier: Modifier = Modi
                 Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .nestedScroll(overscroll)
                     .verticalScroll(scroll),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
@@ -260,7 +222,7 @@ fun DeckScreen(state: DeckState, actions: DeckActions, modifier: Modifier = Modi
             Spacer(Modifier.height(10.dp))
             CommandBar(actions.onCommand, actions.onMic)
         }
-        SideRail(state.system, actions.rail, Modifier.width(MaiDims.RailWidth).fillMaxHeight())
+        SideRail(state.system, actions.rail, Modifier.width(MaiDims.RailWidth).fillMaxHeight(), notifications = state.badges.values.sum())
     }
 }
 

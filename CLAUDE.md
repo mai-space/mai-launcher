@@ -36,8 +36,14 @@ Systemsprache. Paket `space.mai.mai_launcher`, CI-Artefakt `mai-launcher.apk`.
   `mai_launcher_log_key` und Dateiname `launch_log.bin` nie ändern; neue
   Formate nur mit neuer Versionsnummer und Lesbarkeit der alten.
 - **Einstellungen** (`LauncherPrefs`, Schlüssel `dock_0..3`, `dest_home`, `dest_work`, `setup_dismissed`,
-  `widgets`, `feeds`, `mai_widgets_seen`, `comms_log`, `signals_show_text`) tolerant lesen,
+  `widgets`, `feeds`, `mai_widgets_seen`, `comms_log`, `signals_show_text`, `feedback_haptics`, `feedback_sounds`) tolerant lesen,
   Schlüssel nie umbenennen.
+
+- **Rückmeldung** (`domain/Feedback.kt`): `HapticLevel`/`SoundLevel` werden
+  als Index gespeichert – nur am Ende erweitern. Töne werden zur Laufzeit
+  erzeugt (keine Audiodateien), nur bei Klingelton „an“.
+- **Deck-Gesten:** kein Wischen hoch/runter (kollidiert mit Scrollen von
+  Panels/Widgets). Suche über die Suchleiste, Benachrichtigungen über ALERTS.
 
 - **Mai-Widgets** (`domain/MaiWidgets.kt`): Paket-Präfix `space.mai.` und die
   bevorzugten Widget-Klassen der anderen Mai-Apps. Benennt eine App ihre

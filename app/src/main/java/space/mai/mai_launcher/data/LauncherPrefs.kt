@@ -6,6 +6,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import space.mai.mai_launcher.domain.AppKey
+import space.mai.mai_launcher.domain.HapticLevel
+import space.mai.mai_launcher.domain.SoundLevel
 
 /**
  * Einfache Einstellungen. Schlüssel nie umbenennen; Werte tolerant lesen.
@@ -64,6 +66,24 @@ class LauncherPrefs(context: Context) {
     fun setSignalsShowText(on: Boolean) {
         prefs.edit { putBoolean("signals_show_text", on) }
         _signalsText.value = on
+    }
+
+    private val _haptics = MutableStateFlow(HapticLevel.of(prefs.getInt("feedback_haptics", HapticLevel.Light.ordinal)))
+    /** Vibration bei Interaktionen (Standard: leicht). */
+    val haptics: StateFlow<HapticLevel> = _haptics.asStateFlow()
+
+    fun setHaptics(level: HapticLevel) {
+        prefs.edit { putInt("feedback_haptics", level.ordinal) }
+        _haptics.value = level
+    }
+
+    private val _sounds = MutableStateFlow(SoundLevel.of(prefs.getInt("feedback_sounds", SoundLevel.Off.ordinal)))
+    /** Töne bei Interaktionen (Standard: aus). */
+    val sounds: StateFlow<SoundLevel> = _sounds.asStateFlow()
+
+    fun setSounds(level: SoundLevel) {
+        prefs.edit { putInt("feedback_sounds", level.ordinal) }
+        _sounds.value = level
     }
 
     companion object {

@@ -40,6 +40,8 @@ class SystemActions(private val context: Context) {
     fun storageSettings() = start(Intent(Settings.ACTION_INTERNAL_STORAGE_SETTINGS), Intent(Settings.ACTION_SETTINGS))
     fun alarms() = start(Intent(AlarmClock.ACTION_SHOW_ALARMS))
     fun homeSettings() = start(Intent(Settings.ACTION_HOME_SETTINGS))
+    fun systemSettings() = start(Intent(Settings.ACTION_SETTINGS))
+    fun launcherInfo() = start(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:${context.packageName}".toUri()))
 
     /** Befehl aus der Befehlszeile ausführen (Wählen nur über die Telefon-App). */
     fun run(cmd: Command) {

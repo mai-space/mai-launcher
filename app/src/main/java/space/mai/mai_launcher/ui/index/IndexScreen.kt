@@ -42,14 +42,12 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -66,6 +64,7 @@ import space.mai.mai_launcher.design.CommandShape
 import space.mai.mai_launcher.design.GlowLevel
 import space.mai.mai_launcher.design.GripLine
 import space.mai.mai_launcher.design.LocalAccent
+import space.mai.mai_launcher.design.LocalFeedback
 import space.mai.mai_launcher.design.MaiColors
 import space.mai.mai_launcher.design.MaiDims
 import space.mai.mai_launcher.design.MaiLabel
@@ -256,7 +255,7 @@ private fun LetterHeader(letter: Char) {
 @Composable
 private fun AppRow(tile: AppTile, highlighted: Boolean, actions: IndexActions) {
     val accent = LocalAccent.current.main
-    val haptics = LocalHapticFeedback.current
+    val feedback = LocalFeedback.current
     var expanded by remember(tile.key) { mutableStateOf(false) }
     val shape = ChamferShape(6.dp)
     Column(
@@ -276,9 +275,9 @@ private fun AppRow(tile: AppTile, highlighted: Boolean, actions: IndexActions) {
                 .height(MaiDims.MinTouch)
                 .combinedClickable(
                     role = Role.Button,
-                    onClick = { actions.onApp(tile) },
+                    onClick = { feedback.tap(); actions.onApp(tile) },
                     onLongClick = {
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        feedback.longPress()
                         expanded = !expanded
                     },
                 )
@@ -400,7 +399,7 @@ private fun LetterRail(
     modifier: Modifier = Modifier,
 ) {
     val scope = rememberCoroutineScope()
-    val haptics = LocalHapticFeedback.current
+    val feedback = LocalFeedback.current
     var height by remember { mutableIntStateOf(1) }
     var active by remember { mutableStateOf<Char?>(null) }
     val accent = LocalAccent.current.main
@@ -411,7 +410,7 @@ private fun LetterRail(
         val letter = letters[i]
         if (letter != active) {
             active = letter
-            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            feedback.tick()
             onLetter(letter)?.let { scope.launch { listState.scrollToItem(it) } }
         }
     }

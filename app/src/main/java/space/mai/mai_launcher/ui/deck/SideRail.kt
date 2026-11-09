@@ -17,10 +17,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import space.mai.mai_launcher.R
 import space.mai.mai_launcher.design.GlowLevel
+import space.mai.mai_launcher.design.Glyphs
 import space.mai.mai_launcher.design.HexToken
 import space.mai.mai_launcher.design.LocalAccent
 import space.mai.mai_launcher.design.MaiColors
 import space.mai.mai_launcher.design.MaiLabel
+import space.mai.mai_launcher.domain.SignalDigest
 import space.mai.mai_launcher.domain.SoundMode
 import space.mai.mai_launcher.system.SystemState
 
@@ -35,13 +37,15 @@ class RailActions(
     val onSoundLong: () -> Unit = {},
     val onTorch: () -> Unit = {},
     val onRotate: () -> Unit = {},
+    val onNotifications: () -> Unit = {},
+    val onSettings: () -> Unit = {},
 )
 
 private data class RailItem(val label: String, val on: Boolean, val onClick: () -> Unit, val onLong: (() -> Unit)? = null)
 
 /** Seitenleiste außerhalb des Rahmens: Gerätezustand, nicht Inhalt. */
 @Composable
-fun SideRail(sys: SystemState, actions: RailActions, modifier: Modifier = Modifier) {
+fun SideRail(sys: SystemState, actions: RailActions, modifier: Modifier = Modifier, notifications: Int = 0) {
     val items = buildList {
         add(RailItem(stringResource(R.string.rail_wifi), sys.wifiConnected, actions.onWifi, actions.onWifiLong))
         add(RailItem(stringResource(R.string.rail_bluetooth), sys.bluetoothOn == true, actions.onBluetooth))
@@ -59,11 +63,41 @@ fun SideRail(sys: SystemState, actions: RailActions, modifier: Modifier = Modifi
         add(RailItem(stringResource(R.string.rail_rotate), sys.autoRotate, actions.onRotate))
     }
     Column(
-        modifier.padding(top = 110.dp),
+        modifier.padding(top = 110.dp, bottom = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         items.forEach { RailButton(it) }
+        Spacer(Modifier.weight(1f))
+        // Benachrichtigungen und Launcher-Einstellungen: unten, abgesetzt von den Geräteschaltern.
+        GlyphButton(
+            stringResource(R.string.rail_notifications), stringResource(R.string.rail_notifications_desc),
+            Glyphs.Bell, actions.onNotifications, badge = SignalDigest.badgeText(notifications),
+        )
+        GlyphButton(stringResource(R.string.rail_settings), stringResource(R.string.settings_title), Glyphs.Sliders, actions.onSettings)
+    }
+}
+
+@Composable
+private fun GlyphButton(
+    label: String,
+    description: String,
+    glyph: androidx.compose.ui.graphics.drawscope.DrawScope.(androidx.compose.ui.graphics.Color) -> Unit,
+    onClick: () -> Unit,
+    badge: String? = null,
+) {
+    val accent = LocalAccent.current.main
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        HexToken(
+            contentDescription = description,
+            size = 28.dp,
+            glyph = glyph,
+            color = accent,
+            filled = false,
+            badge = badge,
+            onClick = onClick,
+        )
+        MaiLabel(label, color = accent, align = TextAlign.Center)
     }
 }
 

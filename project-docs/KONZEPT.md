@@ -156,12 +156,13 @@ Five areas, all reachable from the Deck with one gesture. No hidden
 gestures that you must learn; every gesture also has a visible button.
 
 ```
-                    swipe down: Android notification shade
-                                   ▲
    swipe right: COMMS  ◀────  DECK (home)  ────▶  swipe left: MEDIA
-                                   │
-                    swipe up: INDEX (all apps)
-                    tap command line / long-press home: COMMAND
+                    tap search bar: INDEX (all apps) + COMMAND
+                    side rail ALERTS: Android notification shade
+                    side rail SETUP: launcher settings
+
+   No vertical swipes on the Deck: up/down belongs to scrolling panels
+   and widgets (changed after testing on the device).
 ```
 
 | Area | Context colour | Purpose | Mockup |
@@ -300,8 +301,8 @@ decision 4.
 
 ### 2.6 Notifications ("Signals")
 
-- Swipe down on the Deck opens the normal Android shade (reliable,
-  actionable, nothing to rebuild).
+- The ALERTS button in the side rail opens the normal Android shade
+  (reliable, actionable, nothing to rebuild). Its badge shows the count.
 - The **Signals panel** on the Deck shows a digest: app token, sender or
   title, unread count. Tap opens the notification's own action.
 - **Badges** (amber counts) on dock, Index and Signals.

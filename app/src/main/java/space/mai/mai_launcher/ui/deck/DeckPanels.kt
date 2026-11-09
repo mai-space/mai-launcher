@@ -43,6 +43,7 @@ import space.mai.mai_launcher.design.ChamferShape
 import space.mai.mai_launcher.design.Glyphs
 import space.mai.mai_launcher.design.HexToken
 import space.mai.mai_launcher.design.LocalAccent
+import space.mai.mai_launcher.design.LocalFeedback
 import space.mai.mai_launcher.design.MaiBar
 import space.mai.mai_launcher.design.MaiColors
 import space.mai.mai_launcher.design.MaiLabel
@@ -341,13 +342,14 @@ fun WidgetPanel(
 
 @Composable
 fun EditChip(text: String, onClick: () -> Unit, color: Color = LocalAccent.current.main) {
+    val feedback = LocalFeedback.current
     val shape = ChamferShape(6.dp)
     Box(
         Modifier
             .heightIn(min = 40.dp)
             .background(MaiColors.Panel, shape)
             .glowBorder(shape, color)
-            .clickable(role = Role.Button, onClick = onClick)
+            .clickable(role = Role.Button) { feedback.tap(); onClick() }
             .padding(horizontal = 14.dp),
         contentAlignment = Alignment.Center,
     ) { MaiLabel(text, color = color) }

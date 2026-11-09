@@ -29,6 +29,9 @@ import space.mai.mai_launcher.domain.SignalDigest
 import space.mai.mai_launcher.domain.SignalGroup
 import space.mai.mai_launcher.data.LaunchLog
 import space.mai.mai_launcher.feeds.FeedRepository
+import space.mai.mai_launcher.feedback.FeedbackPlayer
+import space.mai.mai_launcher.domain.FeedbackKind
+import space.mai.mai_launcher.ui.settings.DockSlot
 import space.mai.mai_launcher.data.LauncherPrefs
 import space.mai.mai_launcher.domain.AppInfo
 import space.mai.mai_launcher.domain.AppKey
@@ -78,6 +81,11 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     private val predictor = Predictor()
     val icons = IconLoader(repo, (48 * app.resources.displayMetrics.density).toInt())
 
+    /** Vibration und Töne bei Interaktionen (einstellbar). */
+    val haptics = prefs.haptics
+    val sounds = prefs.sounds
+    val feedback = FeedbackPlayer(app, prefs.haptics, prefs.sounds)
+
     var host: LauncherHost? = null
 
     private val _screen = MutableStateFlow(Screen.Deck)
@@ -85,6 +93,9 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
+
+    /** Wohin nach der Dock-Auswahl zurückgekehrt wird (Deck oder Einstellungen). */
+    private var pickReturn = Screen.Deck
 
     private val _pickingSlot = MutableStateFlow<Int?>(null)
     val pickingSlot: StateFlow<Int?> = _pickingSlot.asStateFlow()
@@ -205,6 +216,63 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun onSpeechResult(text: String?) {
         text?.trim()?.takeIf { it.isNotEmpty() }?.let { _query.value = it }
+    }
+
+    // --- Launcher-Einstellungen ---
+
+    /** Dock-Plätze mit Hinweis, ob selbst gewählt oder System-Standard. */
+    val settingsDock: StateFlow<List<DockSlot>> = combine(dock, prefs.dock, apps) { tiles, saved, list ->
+        val keys = list.mapTo(HashSet()) { it.key }
+        tiles.mapIndexed { i, t -> DockSlot(t, saved.getOrNull(i)?.let { it in keys } == true) }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    val version: String = runCatching {
+        app.packageManager.getPackageInfo(app.packageName, 0).versionName
+    }.getOrNull().orEmpty()
+
+    fun openSettings() {
+        _editMode.value = false
+        _screen.value = Screen.Settings
+        refreshAccess()
+    }
+
+    fun pickDockFromSettings(slot: Int) {
+        startPickingDock(slot)
+        pickReturn = Screen.Settings
+    }
+
+    fun resetDock() {
+        repeat(LauncherPrefs.DOCK_SLOTS) { prefs.setDockSlot(it, null) }
+    }
+
+    fun arrangeDeck() {
+        _screen.value = Screen.Deck
+        _editMode.value = true
+    }
+
+    fun cycleHaptics() {
+        prefs.setHaptics(prefs.haptics.value.next())
+        feedback.tick()
+    }
+
+    fun cycleSounds() {
+        prefs.setSounds(prefs.sounds.value.next())
+        // Vorhören (spielt nur, wenn das Telefon auf „Klingeln“ steht).
+        feedback.play(FeedbackKind.Tap)
+    }
+
+    /** Startbildschirm: anfragen, oder – wenn schon gesetzt – die System-Auswahl öffnen. */
+    fun settingsHome() {
+        if (_access.value.home) actions.homeSettings() else host?.requestHomeRole()
+    }
+
+    /** Freigegeben: App-Info (dort entziehen); sonst anfragen. */
+    fun settingsCalendar() {
+        if (_access.value.calendar) actions.launcherInfo() else host?.requestCalendar()
+    }
+
+    fun settingsContacts() {
+        if (_access.value.contacts) actions.launcherInfo() else host?.requestContacts()
     }
 
     // --- Media ---
@@ -343,7 +411,9 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun closeIndex() {
         voice.stop()
-        _screen.value = Screen.Deck
+        // Dock-Auswahl aus den Einstellungen: dorthin zurück.
+        _screen.value = if (_pickingSlot.value != null) pickReturn else Screen.Deck
+        pickReturn = Screen.Deck
         _query.value = ""
         _pickingSlot.value = null
     }
@@ -353,7 +423,8 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     fun onHome() {
         _editMode.value = false
         if (_screen.value == Screen.Comms) closeComms()
-        if (_screen.value == Screen.Media) _screen.value = Screen.Deck
+        if (_screen.value == Screen.Media || _screen.value == Screen.Settings) _screen.value = Screen.Deck
+        pickReturn = Screen.Deck
         closeIndex()
     }
 
@@ -361,6 +432,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         when {
             _screen.value == Screen.Widgets -> _screen.value = Screen.Deck
             _screen.value == Screen.Media -> _screen.value = Screen.Deck
+            _screen.value == Screen.Settings -> _screen.value = Screen.Deck
             _screen.value == Screen.Comms && _keypadOpen.value -> _keypadOpen.value = false
             _screen.value == Screen.Comms && _commsQuery.value.isNotEmpty() -> _commsQuery.value = ""
             _screen.value == Screen.Comms -> closeComms()
@@ -375,6 +447,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     fun setEditMode(on: Boolean) { _editMode.value = on }
 
     fun startPickingDock(slot: Int) {
+        pickReturn = Screen.Deck
         _pickingSlot.value = slot
         openIndex(withKeyboard = false)
     }
@@ -512,5 +585,6 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     override fun onCleared() {
         onHidden()
+        feedback.release()
     }
 }
