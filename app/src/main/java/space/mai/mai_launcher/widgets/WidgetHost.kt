@@ -15,6 +15,7 @@ import androidx.core.content.edit
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import space.mai.mai_launcher.domain.ProviderRef
 import space.mai.mai_launcher.domain.WidgetIds
 
 /** Ein Widget-Angebot einer App für die Auswahl. */
@@ -67,6 +68,16 @@ class WidgetHost(private val context: Context) {
             WidgetOption(info.provider, info.loadLabel(pm) ?: appLabel, appLabel, cw, ch, info)
         }.sortedWith(compareBy({ it.appLabel.lowercase() }, { it.label.lowercase() }))
     }
+
+    /** Alle installierten Anbieter, nur Paket/Klasse. */
+    fun installedRefs(): List<ProviderRef> = runCatching {
+        manager.getInstalledProvidersForProfile(Process.myUserHandle())
+            .map { ProviderRef(it.provider.packageName, it.provider.className) }
+    }.getOrDefault(emptyList())
+
+    /** Pakete, die schon ein Widget auf dem Deck haben. */
+    fun placedPackages(): Set<String> =
+        _ids.value.mapNotNull { manager.getAppWidgetInfo(it)?.provider?.packageName }.toSet()
 
     fun preview(option: WidgetOption): Drawable? = runCatching {
         option.info.loadPreviewImage(context, 0) ?: option.info.loadIcon(context, 0)

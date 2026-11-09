@@ -85,4 +85,6 @@
     <string name="age_minutes">%d MIN</string>
     <string name="age_hours">%d H</string>
     <string name="age_days">%d D</string>
+    <string name="setup_mai_widgets">Widgets of your Mai apps</string>
+    <string name="setup_mai_widgets_body">One widget per Mai app. Android asks once: tick “Always allow”.</string>
 </resources>

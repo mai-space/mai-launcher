@@ -23,6 +23,8 @@ import space.mai.mai_launcher.data.LauncherPrefs
 import space.mai.mai_launcher.domain.AppInfo
 import space.mai.mai_launcher.domain.AppKey
 import space.mai.mai_launcher.domain.AppSearch
+import space.mai.mai_launcher.domain.MaiWidgets
+import space.mai.mai_launcher.domain.ProviderRef
 import space.mai.mai_launcher.domain.Predictor
 import space.mai.mai_launcher.domain.launchCounts
 import space.mai.mai_launcher.media.MediaHub
@@ -43,7 +45,7 @@ interface LauncherHost {
 }
 
 /** Optionale Einrichtungsschritte; verschwinden, sobald erledigt oder weggeklickt. */
-enum class SetupItem { Home, Signals, Calendar }
+enum class SetupItem { Home, Signals, Calendar, MaiWidgets }
 
 /** Zustand und Aktionen des Launchers. */
 class LauncherViewModel(app: Application) : AndroidViewModel(app) {
@@ -86,9 +88,14 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     val destinations = prefs.destinations
     val navigation = SignalsHub.navigation
 
-    val setup: StateFlow<List<SetupItem>> = combine(_access, prefs.dismissedSetup) { a, dismissed ->
+    /** Mai-Widgets, die nur mit Freigabe (System-Dialog) aufs Deck können. */
+    private val _maiPending = MutableStateFlow<List<ProviderRef>>(emptyList())
+    val maiPending: StateFlow<List<ProviderRef>> = _maiPending.asStateFlow()
+
+    val setup: StateFlow<List<SetupItem>> = combine(_access, prefs.dismissedSetup, _maiPending) { a, dismissed, mai ->
         buildList {
             if (!a.home) add(SetupItem.Home)
+            if (mai.isNotEmpty()) add(SetupItem.MaiWidgets)
             if (!a.signals && SetupItem.Signals.name !in dismissed) add(SetupItem.Signals)
             if (!a.calendar && SetupItem.Calendar.name !in dismissed) add(SetupItem.Calendar)
         }
@@ -124,6 +131,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         widgets.startListening()
         refreshAccess()
         feeds.refresh()
+        autoAddMaiWidgets()
     }
 
     /** Link eines News-Eintrags im Standard-Browser öffnen. */
@@ -152,6 +160,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             SetupItem.Home -> h.requestHomeRole()
             SetupItem.Signals -> h.openNotificationAccess()
             SetupItem.Calendar -> h.requestCalendar()
+            SetupItem.MaiWidgets -> addMaiWidgets()
         }
     }
 
@@ -165,7 +174,15 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         if (!system.toggleDnd()) actions.policyAccessSettings()
     }
 
-    fun dismissSetup(item: SetupItem) = prefs.dismissSetup(item.name)
+    fun dismissSetup(item: SetupItem) {
+        if (item == SetupItem.MaiWidgets) {
+            // „Später“ heißt hier: diese Apps nicht mehr automatisch anbieten (Auswahl bleibt).
+            prefs.markMaiWidgetsSeen(_maiPending.value.map { it.packageName })
+            _maiPending.value = emptyList()
+            return
+        }
+        prefs.dismissSetup(item.name)
+    }
 
     // --- Navigation zwischen Ansichten ---
 
@@ -262,9 +279,60 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         if (needsBind) host?.bindWidget(id, option.provider) ?: onWidgetBound(false) else onWidgetBound(true)
     }
 
+    /**
+     * Mai-Apps automatisch mit ihrem Standard-Widget aufs Deck legen. Klappt das
+     * Binden ohne Dialog (Launcher hat die Freigabe), geschieht es still; sonst
+     * erscheint ein Einrichtungs-Hinweis, der die Freigabe einmal anfragt.
+     */
+    fun autoAddMaiWidgets() {
+        if (pendingWidget != null) return
+        val placed = widgets.placedPackages()
+        // Schon vorhandene Mai-Widgets gelten als gesehen: einmal entfernt, kommen sie nicht wieder.
+        prefs.markMaiWidgetsSeen(placed.filter(MaiWidgets::isMai).filter { it !in prefs.maiWidgetsSeen.value })
+        val todo = MaiWidgets.pending(widgets.installedRefs(), placed, prefs.maiWidgetsSeen.value)
+        val needsDialog = mutableListOf<ProviderRef>()
+        for (ref in todo) {
+            val provider = ComponentName(ref.packageName, ref.className)
+            val (id, needsBind) = widgets.allocate(provider)
+            when {
+                needsBind -> { widgets.discard(id); needsDialog += ref }
+                // Widgets mit eigener Einrichtung nicht ungefragt öffnen; sie bleiben in der Auswahl.
+                widgets.needsConfigure(id) -> { widgets.discard(id); prefs.markMaiWidgetsSeen(listOf(ref.packageName)) }
+                else -> { widgets.commit(id); prefs.markMaiWidgetsSeen(listOf(ref.packageName)) }
+            }
+        }
+        _maiPending.value = needsDialog
+    }
+
+    /** Warteschlange für „Mai-Widgets hinzufügen“: nacheinander über den System-Dialog. */
+    private var maiQueue: ArrayDeque<ProviderRef>? = null
+
+    private fun addMaiWidgets() {
+        maiQueue = ArrayDeque(_maiPending.value)
+        nextMaiWidget()
+    }
+
+    private fun nextMaiWidget() {
+        val queue = maiQueue ?: return
+        val ref = queue.removeFirstOrNull()
+        if (ref == null) { maiQueue = null; autoAddMaiWidgets(); return }
+        prefs.markMaiWidgetsSeen(listOf(ref.packageName))
+        _maiPending.value = queue.toList()
+        val provider = ComponentName(ref.packageName, ref.className)
+        val (id, needsBind) = widgets.allocate(provider)
+        pendingWidget = id
+        // Nach „Immer erlauben“ im ersten Dialog binden die übrigen ohne Rückfrage.
+        if (needsBind) host?.bindWidget(id, provider) ?: onWidgetBound(false) else onWidgetBound(true)
+    }
+
     fun onWidgetBound(ok: Boolean) {
         val id = pendingWidget ?: return
-        if (!ok) { widgets.discard(id); pendingWidget = null; return }
+        if (!ok) {
+            widgets.discard(id); pendingWidget = null
+            // Abgelehnt: übrige Mai-Widgets nicht weiter nachfragen.
+            maiQueue?.let { q -> prefs.markMaiWidgetsSeen(q.map { it.packageName }); maiQueue = null; _maiPending.value = emptyList() }
+            return
+        }
         if (widgets.needsConfigure(id)) host?.configureWidget(id) ?: onWidgetConfigured(false) else onWidgetConfigured(true)
     }
 
@@ -272,6 +340,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         val id = pendingWidget ?: return
         pendingWidget = null
         if (ok) widgets.commit(id) else widgets.discard(id)
+        if (maiQueue != null) nextMaiWidget()
     }
 
     override fun onCleared() {

@@ -46,6 +46,17 @@ class LauncherPrefs(context: Context) {
         _dismissed.value = next
     }
 
+    private val _maiSeen = MutableStateFlow(prefs.getStringSet("mai_widgets_seen", emptySet()).orEmpty())
+    /** Mai-Apps, deren Widget schon einmal automatisch angeboten wurde (Paketnamen). */
+    val maiWidgetsSeen: StateFlow<Set<String>> = _maiSeen.asStateFlow()
+
+    fun markMaiWidgetsSeen(packages: Collection<String>) {
+        if (packages.isEmpty()) return
+        val next = _maiSeen.value + packages
+        prefs.edit { putStringSet("mai_widgets_seen", next) }
+        _maiSeen.value = next
+    }
+
     companion object {
         const val DOCK_SLOTS = 4
     }

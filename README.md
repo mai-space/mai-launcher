@@ -13,7 +13,8 @@ Concept: [`project-docs/KONZEPT.md`](project-docs/KONZEPT.md)
 ## Status
 
 Deck (home) with now playing, navigation (next turn from the maps app),
-upcoming events, quick destinations, hosted Android widgets, a news panel
+upcoming events, quick destinations, hosted Android widgets (one widget of
+each installed Mai app is added automatically), a news panel
 for your own RSS/Atom feeds (HTTPS only, text only) and an edit mode;
 Index (all apps, search, A–Z rail, "likely now"); side rail for Wi-Fi, BT,
 sound mode (ring/vibrate/mute), DND, torch and rotation. Every permission is

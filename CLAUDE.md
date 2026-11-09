@@ -26,8 +26,12 @@ Systemsprache. Paket `space.mai.mai_launcher`, CI-Artefakt `mai-launcher.apk`.
   `mai_launcher_log_key` und Dateiname `launch_log.bin` nie ändern; neue
   Formate nur mit neuer Versionsnummer und Lesbarkeit der alten.
 - **Einstellungen** (`LauncherPrefs`, Schlüssel `dock_0..3`, `dest_home`, `dest_work`, `setup_dismissed`,
-  `widgets`, `feeds`) tolerant lesen,
+  `widgets`, `feeds`, `mai_widgets_seen`) tolerant lesen,
   Schlüssel nie umbenennen.
+
+- **Mai-Widgets** (`domain/MaiWidgets.kt`): Paket-Präfix `space.mai.` und die
+  bevorzugten Widget-Klassen der anderen Mai-Apps. Benennt eine App ihre
+  Widget-Klasse um, hier mitziehen (sonst greift nur der Rückfall).
 
 ## Design-System (`design/`)
 

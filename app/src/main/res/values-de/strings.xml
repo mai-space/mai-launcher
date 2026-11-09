@@ -83,4 +83,6 @@
     <string name="age_minutes">%d MIN</string>
     <string name="age_hours">%d STD</string>
     <string name="age_days">%d T</string>
+    <string name="setup_mai_widgets">Widgets deiner Mai-Apps</string>
+    <string name="setup_mai_widgets_body">Ein Widget je Mai-App. Android fragt einmal: „Immer erlauben“ wählen.</string>
 </resources>

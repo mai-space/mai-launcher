@@ -70,6 +70,7 @@ fun SetupPanel(items: List<SetupItem>, onItem: (SetupItem) -> Unit, onDismiss: (
                 SetupItem.Home -> R.string.setup_home to R.string.setup_home_body
                 SetupItem.Signals -> R.string.setup_signals to R.string.setup_signals_body
                 SetupItem.Calendar -> R.string.setup_calendar to R.string.setup_calendar_body
+                SetupItem.MaiWidgets -> R.string.setup_mai_widgets to R.string.setup_mai_widgets_body
             }
             Row(
                 Modifier
