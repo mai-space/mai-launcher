@@ -1,0 +1,22 @@
+# Build
+.gradle/
+build/
+/app/build/
+local.properties
+.kotlin/
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+
+# Nutzerdaten nie ins Repo (Sicherungen/Exporte)
+*.mailauncher
+*.csv

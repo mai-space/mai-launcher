@@ -1,0 +1,67 @@
+# Mai Launcher — CI
+# Linse: Secrets niemals im Repo · schnelles Feedback · keine Nutzerdaten
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Test, Lint & APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      # ubuntu-latest bringt ANDROID_HOME mit.
+      - name: Setup Java
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Unit- und Oberflächentests
+        run: ./gradlew :app:testDebugUnitTest --stacktrace
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+
+      - name: Lint
+        run: ./gradlew :app:lintDebug
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+
+      # Release-Build mit R8; bis zum Upload-Schlüssel mit Debug-Schlüssel signiert.
+      - name: Build APK
+        run: |
+          ./gradlew :app:assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk mai-launcher.apk
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: mai-launcher.apk
+          path: mai-launcher.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: reports
+          path: app/build/reports
+          retention-days: 7
