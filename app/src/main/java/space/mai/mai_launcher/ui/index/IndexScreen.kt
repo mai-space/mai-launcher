@@ -77,6 +77,9 @@ import space.mai.mai_launcher.design.glowBorder
 import space.mai.mai_launcher.domain.AlphaIndex
 import space.mai.mai_launcher.domain.AppInfo
 import space.mai.mai_launcher.domain.AppKey
+import space.mai.mai_launcher.domain.Command
+import space.mai.mai_launcher.domain.CommandParser
+import space.mai.mai_launcher.domain.Contact
 import space.mai.mai_launcher.ui.AppTile
 import space.mai.mai_launcher.ui.AppToken
 import space.mai.mai_launcher.ui.rememberAppIcon
@@ -90,6 +93,9 @@ data class IndexState(
     val likely: List<AppTile>,
     val likelyWindow: Pair<Int, Int>,
     val pickingDock: Boolean = false,
+    /** Befehle zur Eingabe (Rechner, Timer, …); Websuche immer zuletzt. */
+    val commands: List<Command> = emptyList(),
+    val contacts: List<Contact> = emptyList(),
 )
 
 class IndexActions(
@@ -99,6 +105,9 @@ class IndexActions(
     val onClose: () -> Unit = {},
     val onAppInfo: (AppKey) -> Unit = {},
     val onUninstall: (AppKey) -> Unit = {},
+    val onCommand: (Command) -> Unit = {},
+    val onCall: (Contact) -> Unit = {},
+    val onText: (Contact) -> Unit = {},
 )
 
 /** Eine Zeile der Liste: Buchstaben-Kopf oder App. */
@@ -161,11 +170,29 @@ fun IndexScreen(
                 state = listState,
             ) {
                 if (searching) {
-                    if (state.results.isEmpty()) {
+                    // Reihenfolge = Rang: ausdrückliche Befehle, Apps, Kontakte, Einstellungen, Websuche.
+                    val explicit = state.commands.filter(CommandParser::isExplicit)
+                    val rest = state.commands.filterNot(CommandParser::isExplicit)
+                    val commandFirst = explicit.isNotEmpty()
+                    if (explicit.isEmpty() && state.results.isEmpty() && state.contacts.isEmpty() && rest.isEmpty()) {
                         item { MaiText(stringResource(R.string.no_results), MaiType.Body, Modifier.padding(top = 24.dp)) }
                     }
+                    items(explicit, key = { "c_" + it.toString() }) { cmd ->
+                        CommandRow(cmd, highlighted = cmd == explicit.first(), onRun = actions.onCommand)
+                    }
                     items(state.results, key = { it.key.encode() }) { tile ->
-                        AppRow(tile, highlighted = tile == state.results.first(), actions)
+                        AppRow(tile, highlighted = !commandFirst && tile == state.results.first(), actions)
+                    }
+                    items(state.contacts, key = { "k_" + it.lookupKey }) { c ->
+                        ContactRow(
+                            c,
+                            highlighted = !commandFirst && state.results.isEmpty() && c == state.contacts.first(),
+                            onCall = actions.onCall,
+                            onText = actions.onText,
+                        )
+                    }
+                    items(rest, key = { "r_" + it.toString() }) { cmd ->
+                        CommandRow(cmd, highlighted = false, onRun = actions.onCommand)
                     }
                 } else {
                     if (state.likely.isNotEmpty()) {

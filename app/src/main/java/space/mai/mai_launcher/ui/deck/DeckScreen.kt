@@ -18,6 +18,7 @@ import space.mai.mai_launcher.domain.NavInfo
 import space.mai.mai_launcher.domain.NowPlaying
 import space.mai.mai_launcher.ui.SetupItem
 import space.mai.mai_launcher.feeds.FeedState
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -102,6 +103,7 @@ class DeckActions(
     val onDockLongPress: (Int) -> Unit = {},
     val onCommand: () -> Unit = {},
     val onSwipeUp: () -> Unit = {},
+    val onSwipeRight: () -> Unit = {},
     val onSwipeDown: () -> Unit = {},
     val onClock: () -> Unit = {},
     val onBattery: () -> Unit = {},
@@ -174,6 +176,14 @@ fun DeckScreen(state: DeckState, actions: DeckActions, modifier: Modifier = Modi
                         }
                     },
                 ) { _, dy -> total += dy }
+            }
+            // Nach rechts wischen = Comms (Kontakte, Wähltastatur).
+            .pointerInput(Unit) {
+                var total = 0f
+                detectHorizontalDragGestures(
+                    onDragStart = { total = 0f },
+                    onDragEnd = { if (total > threshold) actions.onSwipeRight() },
+                ) { _, dx -> total += dx }
             }
             .pointerInput(Unit) { detectTapGestures(onLongPress = { actions.onEditMode(true) }) },
     ) {

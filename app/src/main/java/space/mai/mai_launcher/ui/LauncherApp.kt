@@ -27,6 +27,10 @@ import kotlinx.coroutines.withContext
 import space.mai.mai_launcher.design.Accents
 import space.mai.mai_launcher.design.LocalAccent
 import space.mai.mai_launcher.design.MaiBackground
+import space.mai.mai_launcher.domain.ContactRanking
+import space.mai.mai_launcher.ui.comms.CommsActions
+import space.mai.mai_launcher.ui.comms.CommsScreen
+import space.mai.mai_launcher.ui.comms.CommsState
 import space.mai.mai_launcher.ui.deck.DeckActions
 import space.mai.mai_launcher.ui.deck.DeckScreen
 import space.mai.mai_launcher.ui.deck.DeckState
@@ -63,6 +67,14 @@ fun LauncherApp(vm: LauncherViewModel) {
     val widgetIds by vm.widgets.ids.collectAsStateWithLifecycle()
     val editMode by vm.editMode.collectAsStateWithLifecycle()
     val news by vm.feeds.state.collectAsStateWithLifecycle()
+    val commands by vm.commands.collectAsStateWithLifecycle()
+    val contactHits by vm.contactResults.collectAsStateWithLifecycle()
+    val allContacts by vm.contacts.contacts.collectAsStateWithLifecycle()
+    val commsLog by vm.contacts.log.collectAsStateWithLifecycle()
+    val commsResults by vm.commsResults.collectAsStateWithLifecycle()
+    val commsQuery by vm.commsQuery.collectAsStateWithLifecycle()
+    val keypadOpen by vm.keypadOpen.collectAsStateWithLifecycle()
+    val dialed by vm.dialed.collectAsStateWithLifecycle()
     val use24h = systemUses24h()
 
     val artBitmap = remember(art) { art?.asImageBitmap() }
@@ -83,6 +95,7 @@ fun LauncherApp(vm: LauncherViewModel) {
             onDockLongPress = vm::startPickingDock,
             onCommand = { vm.openIndex(withKeyboard = true) },
             onSwipeUp = { vm.openIndex(withKeyboard = false) },
+            onSwipeRight = vm::openComms,
             onSwipeDown = vm.actions::expandNotifications,
             onClock = vm.actions::alarms,
             onBattery = vm.actions::batterySettings,
@@ -131,6 +144,25 @@ fun LauncherApp(vm: LauncherViewModel) {
             onClose = vm::closeIndex,
             onAppInfo = vm::appInfo,
             onUninstall = vm::uninstall,
+            onCommand = vm::runCommand,
+            onCall = { vm.call(it); vm.closeIndex() },
+            onText = { vm.text(it); vm.closeIndex() },
+        )
+    }
+    val commsActions = remember(vm) {
+        CommsActions(
+            onAllow = { vm.host?.requestContacts() },
+            onQuery = vm::setCommsQuery,
+            onCall = { c, n -> vm.call(c, n) },
+            onText = { c, n -> vm.text(c, n) },
+            onOpenContact = vm.contacts::openContact,
+            onRufDurch = vm.contacts::openRufDurch,
+            onKeypad = vm::openKeypad,
+            onKey = vm::keypadPress,
+            onBackspace = vm::keypadBack,
+            onClearDial = vm::keypadClear,
+            onDial = vm::dialTyped,
+            onClose = vm::closeComms,
         )
     }
 
@@ -178,11 +210,30 @@ fun LauncherApp(vm: LauncherViewModel) {
                             likely = likely,
                             likelyWindow = vm.likelyWindow,
                             pickingDock = picking != null,
+                            commands = if (picking != null) emptyList() else commands,
+                            contacts = if (picking != null) emptyList() else contactHits,
                         ),
                         indexActions,
                         focusSignal = focus,
                     )
                     Screen.Widgets -> WidgetPicker(vm)
+                    Screen.Comms -> CompositionLocalProvider(LocalAccent provides Accents.Signal) {
+                        val now = remember(commsLog) { System.currentTimeMillis() }
+                        CommsScreen(
+                            CommsState(
+                                access = access.contacts,
+                                contacts = commsResults,
+                                favourites = remember(allContacts) { ContactRanking.favourites(allContacts) },
+                                frequent = remember(allContacts, commsLog) { ContactRanking.frequent(allContacts, commsLog, now) },
+                                total = allContacts.size,
+                                query = commsQuery,
+                                keypadOpen = keypadOpen,
+                                dialed = dialed,
+                                rufDurch = remember { vm.contacts.rufDurchInstalled() },
+                            ),
+                            commsActions,
+                        )
+                    }
                 }
             }
         }

@@ -17,6 +17,11 @@ import space.mai.mai_launcher.design.MaiBackground
 import space.mai.mai_launcher.domain.AppInfo
 import space.mai.mai_launcher.domain.AppKey
 import space.mai.mai_launcher.domain.CalendarEvent
+import space.mai.mai_launcher.domain.CommandParser
+import space.mai.mai_launcher.domain.Contact
+import space.mai.mai_launcher.ui.comms.CommsActions
+import space.mai.mai_launcher.ui.comms.CommsScreen
+import space.mai.mai_launcher.ui.comms.CommsState
 import space.mai.mai_launcher.domain.FeedItem
 import space.mai.mai_launcher.feeds.FeedState
 import space.mai.mai_launcher.domain.NavInfo
@@ -234,5 +239,96 @@ class ScreenshotTest {
             }
         }
         compose.onRoot().captureRoboImage("../project-docs/screenshots/04_index_search.png")
+    }
+
+    @Test fun indexCommands() {
+        compose.setContent {
+            Frame {
+                IndexScreen(
+                    IndexState(
+                        apps = apps,
+                        results = emptyList(),
+                        query = "5 km in mi",
+                        likely = emptyList(),
+                        likelyWindow = 20 to 22,
+                        commands = CommandParser.parse("5 km in mi"),
+                    ),
+                    IndexActions(),
+                    focusSignal = 0,
+                )
+            }
+        }
+        compose.onRoot().captureRoboImage("../project-docs/screenshots/08_index_commands.png")
+    }
+
+    @Test fun indexContact() {
+        compose.setContent {
+            Frame {
+                IndexScreen(
+                    IndexState(
+                        apps = apps,
+                        results = emptyList(),
+                        query = "call sam",
+                        likely = emptyList(),
+                        likelyWindow = 20 to 22,
+                        commands = CommandParser.parse("call sam"),
+                        contacts = listOf(contacts[1]),
+                    ),
+                    IndexActions(),
+                    focusSignal = 0,
+                )
+            }
+        }
+        compose.onRoot().captureRoboImage("../project-docs/screenshots/11_index_contact.png")
+    }
+
+    private val contacts = listOf(
+        Contact("k1", "Alex Berg", true, listOf("+49 151 0000001")),
+        Contact("k2", "Sam Ober", true, listOf("+49 40 0000002", "+49 151 0000003")),
+        Contact("k3", "Mama", true, listOf("+49 171 0000004")),
+        Contact("k4", "Kim Ödegaard", false, listOf("+49 30 0000005")),
+        Contact("k5", "Jo Brandt", true, listOf("+49 89 0000006")),
+        Contact("k6", "Robin Lind", false, listOf("+49 221 0000007")),
+        Contact("k7", "Uli Weber", false, listOf("+49 711 0000008")),
+    )
+
+    @Composable
+    private fun Comms(state: CommsState) {
+        CompositionLocalProvider(LocalAccent provides Accents.Signal) {
+            MaiBackground { CommsScreen(state, CommsActions()) }
+        }
+    }
+
+    @Test fun comms() {
+        compose.setContent {
+            Comms(
+                CommsState(
+                    access = true,
+                    contacts = contacts,
+                    favourites = contacts.filter { it.starred },
+                    frequent = listOf(contacts[3], contacts[5]),
+                    total = contacts.size,
+                    rufDurch = true,
+                ),
+            )
+        }
+        compose.onRoot().captureRoboImage("../project-docs/screenshots/09_comms.png")
+    }
+
+    @Test fun commsKeypad() {
+        compose.setContent {
+            Comms(
+                CommsState(
+                    access = false,
+                    contacts = emptyList(),
+                    favourites = emptyList(),
+                    frequent = emptyList(),
+                    total = 0,
+                    keypadOpen = true,
+                    dialed = "+4940000000",
+                ),
+            )
+        }
+        compose.onRoot().captureRoboImage("../project-docs/screenshots/10_comms_keypad.png")
     }
 }

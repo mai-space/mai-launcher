@@ -15,6 +15,11 @@ Systemsprache. Paket `space.mai.mai_launcher`, CI-Artefakt `mai-launcher.apk`.
 - Kein Android-Backup (`allowBackup=false`, `data_extraction_rules.xml`),
   keine Analytics, kein Konto.
 - Jede Berechtigung optional, mit Erklärung; der Launcher muss ohne laufen.
+- **Comms:** Kontakte nur lesen (`READ_CONTACTS`). Keine Telefon-Berechtigung –
+  Anrufen nur über die Telefon-App (`ACTION_DIAL`), SMS über `smsto:`. Eigener
+  Verlauf (`comms_log`, `CommsLogCodec` Kopf `v1`) speichert nur Kontakt-Schlüssel,
+  Anzahl und Zeit, keine Nummern oder Namen.
+- **Befehlszeile:** alles lokal; Websuche nur auf Tippen, nie per Enter.
 - Keine echten Nutzerdaten ins Repo (Screenshots nur mit erfundenen Daten).
 
 ## Rückwärtskompatibilität (ab dem ersten verteilten Build Pflicht)
@@ -26,7 +31,7 @@ Systemsprache. Paket `space.mai.mai_launcher`, CI-Artefakt `mai-launcher.apk`.
   `mai_launcher_log_key` und Dateiname `launch_log.bin` nie ändern; neue
   Formate nur mit neuer Versionsnummer und Lesbarkeit der alten.
 - **Einstellungen** (`LauncherPrefs`, Schlüssel `dock_0..3`, `dest_home`, `dest_work`, `setup_dismissed`,
-  `widgets`, `feeds`, `mai_widgets_seen`) tolerant lesen,
+  `widgets`, `feeds`, `mai_widgets_seen`, `comms_log`) tolerant lesen,
   Schlüssel nie umbenennen.
 
 - **Mai-Widgets** (`domain/MaiWidgets.kt`): Paket-Präfix `space.mai.` und die

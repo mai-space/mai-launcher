@@ -13,10 +13,18 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import space.mai.mai_launcher.apps.AppRepository
 import space.mai.mai_launcher.apps.IconLoader
 import space.mai.mai_launcher.calendar.CalendarRepository
+import space.mai.mai_launcher.comms.ContactsRepository
+import space.mai.mai_launcher.domain.Command
+import space.mai.mai_launcher.domain.CommandParser
+import space.mai.mai_launcher.domain.Contact
+import space.mai.mai_launcher.domain.ContactRanking
+import space.mai.mai_launcher.domain.ContactVerb
+import space.mai.mai_launcher.domain.Keypad
 import space.mai.mai_launcher.data.LaunchLog
 import space.mai.mai_launcher.feeds.FeedRepository
 import space.mai.mai_launcher.data.LauncherPrefs
@@ -39,6 +47,7 @@ import space.mai.mai_launcher.widgets.WidgetOption
 interface LauncherHost {
     fun requestHomeRole()
     fun requestCalendar()
+    fun requestContacts()
     fun openNotificationAccess()
     fun bindWidget(id: Int, provider: ComponentName)
     fun configureWidget(id: Int)
@@ -56,6 +65,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     val calendar = CalendarRepository(app, viewModelScope)
     val widgets = WidgetHost(app)
     val feeds = FeedRepository(app, viewModelScope)
+    val contacts = ContactsRepository(app, viewModelScope)
     private val homeRole = HomeRole(app)
     private val prefs = LauncherPrefs(app)
     private val log = LaunchLog(app, viewModelScope).also { it.load() }
@@ -83,7 +93,12 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     private val _access = MutableStateFlow(Access())
     val access: StateFlow<Access> = _access.asStateFlow()
 
-    data class Access(val home: Boolean = true, val signals: Boolean = true, val calendar: Boolean = true)
+    data class Access(
+        val home: Boolean = true,
+        val signals: Boolean = true,
+        val calendar: Boolean = true,
+        val contacts: Boolean = true,
+    )
 
     val destinations = prefs.destinations
     val navigation = SignalsHub.navigation
@@ -124,6 +139,70 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         AppSearch.filter(list, q, launchCounts(events)).map { it.toTile() }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
+    // --- Befehlszeile ---
+
+    /** Befehle zur Eingabe (Rechner, Timer, Einstellungen, Websuche …). */
+    val commands: StateFlow<List<Command>> = query.map { CommandParser.parse(it) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /** Kontakte zur Eingabe; mit Verb („call sam“) nur der Name. */
+    val contactResults: StateFlow<List<Contact>> = combine(query, contacts.contacts, contacts.log) { q, list, log ->
+        val name = ContactVerb.parse(q)?.second ?: q
+        if (name.trim().length < 2) emptyList() else ContactRanking.search(list, name, log).take(3)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    fun runCommand(cmd: Command) {
+        actions.run(cmd)
+        if (cmd !is Command.Answer) closeIndex()
+    }
+
+    // --- Comms ---
+
+    /** Wähltastatur: offen/zu und eingetippte Nummer. */
+    private val _dialed = MutableStateFlow("")
+    private val _keypadOpen = MutableStateFlow(false)
+    val keypadOpen: StateFlow<Boolean> = _keypadOpen.asStateFlow()
+    val dialed: StateFlow<String> = _dialed.asStateFlow()
+
+    private val _commsQuery = MutableStateFlow("")
+    val commsQuery: StateFlow<String> = _commsQuery.asStateFlow()
+
+    val commsResults: StateFlow<List<Contact>> = combine(_commsQuery, contacts.contacts, contacts.log) { q, list, log ->
+        if (q.isBlank()) list else ContactRanking.search(list, q, log)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    fun openComms() {
+        _editMode.value = false
+        _screen.value = Screen.Comms
+        contacts.start()
+    }
+
+    fun closeComms() {
+        _screen.value = Screen.Deck
+        _commsQuery.value = ""
+        _keypadOpen.value = false
+        _dialed.value = ""
+    }
+
+    fun setCommsQuery(q: String) { _commsQuery.value = q }
+    fun openKeypad(open: Boolean) { _keypadOpen.value = open }
+    fun keypadPress(c: Char) { _dialed.value = Keypad.press(_dialed.value, c) }
+    fun keypadBack() { _dialed.value = Keypad.backspace(_dialed.value) }
+    fun keypadClear() { _dialed.value = "" }
+
+    fun dialTyped() {
+        val n = _dialed.value
+        if (n.isNotEmpty()) contacts.dial(n)
+    }
+
+    fun call(contact: Contact, number: String? = contact.primaryNumber) {
+        number?.let { contacts.dial(it, contact) }
+    }
+
+    fun text(contact: Contact, number: String? = contact.primaryNumber) {
+        number?.let { contacts.text(it, contact) }
+    }
+
     /** Beim Anzeigen: Beobachter starten und Freigaben neu prüfen. */
     fun onVisible() {
         system.start()
@@ -145,11 +224,18 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         media.stop()
         calendar.stop()
         widgets.stopListening()
+        contacts.stop()
     }
 
     fun refreshAccess() {
-        val a = Access(home = homeRole.isHome(), signals = media.hasAccess(), calendar = calendar.hasAccess())
+        val a = Access(
+            home = homeRole.isHome(),
+            signals = media.hasAccess(),
+            calendar = calendar.hasAccess(),
+            contacts = contacts.hasAccess(),
+        )
         _access.value = a
+        if (a.contacts) contacts.start()
         if (a.signals) media.start()
         if (a.calendar) calendar.start()
     }
@@ -202,12 +288,16 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun onHome() {
         _editMode.value = false
+        if (_screen.value == Screen.Comms) closeComms()
         closeIndex()
     }
 
     fun onBack(): Boolean {
         when {
             _screen.value == Screen.Widgets -> _screen.value = Screen.Deck
+            _screen.value == Screen.Comms && _keypadOpen.value -> _keypadOpen.value = false
+            _screen.value == Screen.Comms && _commsQuery.value.isNotEmpty() -> _commsQuery.value = ""
+            _screen.value == Screen.Comms -> closeComms()
             _screen.value == Screen.Index && _query.value.isNotEmpty() -> _query.value = ""
             _screen.value == Screen.Index -> closeIndex()
             _editMode.value -> _editMode.value = false
@@ -236,8 +326,19 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Enter: ausdrücklicher Befehl > App > Anruf beim Kontakt mit Verb. Websuche nie per Enter. */
     fun launchFirstResult() {
-        results.value.firstOrNull()?.let { onAppTapped(it.key) }
+        val cmd = commands.value.firstOrNull()
+        if (cmd != null && CommandParser.isExplicit(cmd)) { runCommand(cmd); return }
+        val verb = ContactVerb.parse(query.value)
+        val contact = contactResults.value.firstOrNull()
+        if (verb != null && contact != null) {
+            if (verb.first == ContactVerb.Kind.Call) call(contact) else text(contact)
+            closeIndex()
+            return
+        }
+        results.value.firstOrNull()?.let { onAppTapped(it.key); return }
+        if (contact != null) { call(contact); closeIndex() }
     }
 
     fun appInfo(key: AppKey) = repo.openAppInfo(key)
