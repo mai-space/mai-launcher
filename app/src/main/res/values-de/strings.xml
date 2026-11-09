@@ -40,8 +40,8 @@
     <string name="setup_title">Einrichten</string>
     <string name="setup_home">Als Startbildschirm festlegen</string>
     <string name="setup_home_body">Öffnet den System-Dialog. Android fragt beim Drücken von Home nicht mehr.</string>
-    <string name="setup_signals">Musik und Navigation</string>
-    <string name="setup_signals_body">Benachrichtigungszugriff: Steuerung für laufende Medien und die nächste Abbiegung. Nur lesen, nie senden.</string>
+    <string name="setup_signals">Musik, Navigation, Benachrichtigungen</string>
+    <string name="setup_signals_body">Benachrichtigungszugriff: Mediensteuerung, nächste Abbiegung und Benachrichtigungs-Übersicht. Nur lesen, nie senden.</string>
     <string name="setup_calendar">Kommende Termine</string>
     <string name="setup_calendar_body">Kalenderzugriff: zeigt deine nächsten Termine. Nur lesen.</string>
     <string name="panel_now_playing">Läuft gerade</string>
@@ -123,4 +123,19 @@
     <string name="setting_notifications">Benachrichtigungen</string>
     <string name="setting_storage">Speicher</string>
     <string name="setting_all">Alle Einstellungen</string>
+    <string name="tab_media">MEDIA</string>
+    <string name="media_up_next">ALS NÄCHSTES</string>
+    <string name="media_idle">Gerade läuft nichts</string>
+    <string name="media_idle_body">Starte etwas in einer Musik- oder Podcast-App. Die Steuerung erscheint hier.</string>
+    <string name="media_no_access">Braucht den Benachrichtigungszugriff, um zu sehen, was andere Apps abspielen.</string>
+    <string name="media_allow">ERLAUBEN</string>
+    <string name="media_output">Ausgabe und Lautstärke</string>
+    <string name="media_open_app">App öffnen</string>
+    <string name="panel_signals">Signale</string>
+    <string name="signals_empty">Keine neuen Benachrichtigungen.</string>
+    <string name="signals_text_on">TEXT SICHTBAR · TIPPEN ZUM AUSBLENDEN</string>
+    <string name="signals_text_off">TEXT AUSGEBLENDET · TIPPEN ZUM ZEIGEN</string>
+    <string name="voice_start">Befehl sprechen</string>
+    <string name="voice_stop">Zuhören beenden</string>
+    <string name="voice_listening">HÖRE ZU …</string>
 </resources>

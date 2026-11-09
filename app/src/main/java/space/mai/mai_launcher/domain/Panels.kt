@@ -111,3 +111,14 @@ object WidgetIds {
     fun decode(raw: String?): List<Int> =
         raw.orEmpty().split(',').mapNotNull { it.trim().toIntOrNull() }.filter { it > 0 }.distinct()
 }
+
+/** Spulen am Ring: Winkel ab 12 Uhr im Uhrzeigersinn als Anteil 0..1. */
+object SeekRing {
+    fun fraction(x: Float, y: Float, width: Float, height: Float): Float {
+        val dx = x - width / 2
+        val dy = y - height / 2
+        var deg = Math.toDegrees(kotlin.math.atan2(dx.toDouble(), -dy.toDouble()))
+        if (deg < 0) deg += 360.0
+        return (deg / 360.0).toFloat().coerceIn(0f, 1f)
+    }
+}

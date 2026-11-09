@@ -4,9 +4,9 @@ Android home screen replacement with a calm, minimal sci-fi hand-terminal
 look: one glowing frame, one subject, one thumb. Local and private: the only
 network access is the RSS/Atom feeds you add yourself.
 
-| Deck | Deck (live) | News | Comms | Command | Setup / edit | Index |
-|---|---|---|---|---|---|---|
-| ![Deck](project-docs/screenshots/01_deck.png) | ![Live](project-docs/screenshots/05_deck_live.png) | ![News](project-docs/screenshots/07_deck_news.png) | ![Comms](project-docs/screenshots/09_comms.png) | ![Command](project-docs/screenshots/08_index_commands.png) | ![Edit](project-docs/screenshots/06_deck_setup_edit.png) | ![Index](project-docs/screenshots/03_index.png) |
+| Deck | Deck (live) | Signals | Media | News | Comms | Command | Setup / edit | Index |
+|---|---|---|---|---|---|---|---|---|
+| ![Deck](project-docs/screenshots/01_deck.png) | ![Live](project-docs/screenshots/05_deck_live.png) | ![Signals](project-docs/screenshots/12_deck_signals.png) | ![Media](project-docs/screenshots/13_media.png) | ![News](project-docs/screenshots/07_deck_news.png) | ![Comms](project-docs/screenshots/09_comms.png) | ![Command](project-docs/screenshots/08_index_commands.png) | ![Edit](project-docs/screenshots/06_deck_setup_edit.png) | ![Index](project-docs/screenshots/03_index.png) |
 
 Concept: [`project-docs/KONZEPT.md`](project-docs/KONZEPT.md)
 
@@ -19,10 +19,14 @@ for your own RSS/Atom feeds (HTTPS only, text only) and an edit mode;
 Index (all apps, search, A–Z rail, "likely now") with a command line
 (calculator, units, percent, timer/alarm, settings, dial a number, contacts,
 web search on tap); Comms (swipe right on the Deck: favourites, frequent,
-contact search, keypad; calls are handed to the phone app); side rail for Wi-Fi, BT,
+contact search, keypad; calls are handed to the phone app); Media (swipe left
+on the Deck: seek ring, up next, output, music apps when idle); Signals
+(notification digest on the Deck with counts on the Dock, text hidden by
+default, nothing stored); voice input from the mic in the command line
+(on-device recognition where available); side rail for Wi-Fi, BT,
 sound mode (ring/vibrate/mute), DND, torch and rotation. Every permission is
 optional and asked for from a "Set up" panel.
-Next: voice input, Media screen, Signals digest.
+Next: lock-screen and gesture polish, more command verbs.
 
 Privacy: the only network access is fetching the feeds you add yourself.
 

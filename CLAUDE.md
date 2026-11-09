@@ -20,6 +20,11 @@ Systemsprache. Paket `space.mai.mai_launcher`, CI-Artefakt `mai-launcher.apk`.
   Verlauf (`comms_log`, `CommsLogCodec` Kopf `v1`) speichert nur Kontakt-Schlüssel,
   Anzahl und Zeit, keine Nummern oder Namen.
 - **Befehlszeile:** alles lokal; Websuche nur auf Tippen, nie per Enter.
+- **Spracheingabe:** `RECORD_AUDIO` optional, erst beim Tippen aufs Mikrofon
+  erfragt; Erkennung bevorzugt auf dem Gerät (`createOnDeviceSpeechRecognizer`),
+  sonst Systemdialog. Kein Audio, kein Text wird gespeichert.
+- **Signale:** Benachrichtigungs-Übersicht nur im Speicher (`SignalsHub`),
+  nichts auf Platte; Text standardmäßig verborgen (`signals_show_text`).
 - Keine echten Nutzerdaten ins Repo (Screenshots nur mit erfundenen Daten).
 
 ## Rückwärtskompatibilität (ab dem ersten verteilten Build Pflicht)
@@ -31,7 +36,7 @@ Systemsprache. Paket `space.mai.mai_launcher`, CI-Artefakt `mai-launcher.apk`.
   `mai_launcher_log_key` und Dateiname `launch_log.bin` nie ändern; neue
   Formate nur mit neuer Versionsnummer und Lesbarkeit der alten.
 - **Einstellungen** (`LauncherPrefs`, Schlüssel `dock_0..3`, `dest_home`, `dest_work`, `setup_dismissed`,
-  `widgets`, `feeds`, `mai_widgets_seen`, `comms_log`) tolerant lesen,
+  `widgets`, `feeds`, `mai_widgets_seen`, `comms_log`, `signals_show_text`) tolerant lesen,
   Schlüssel nie umbenennen.
 
 - **Mai-Widgets** (`domain/MaiWidgets.kt`): Paket-Präfix `space.mai.` und die

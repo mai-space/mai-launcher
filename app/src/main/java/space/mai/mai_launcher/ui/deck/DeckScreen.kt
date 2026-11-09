@@ -65,6 +65,8 @@ import space.mai.mai_launcher.design.MicGlyph
 import space.mai.mai_launcher.system.SystemState
 import space.mai.mai_launcher.ui.AppTile
 import space.mai.mai_launcher.ui.AppToken
+import space.mai.mai_launcher.domain.SignalDigest
+import space.mai.mai_launcher.domain.SignalGroup
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -95,6 +97,11 @@ data class DeckState(
     val widgets: List<WidgetSlot> = emptyList(),
     val editMode: Boolean = false,
     val news: FeedState = FeedState(),
+    /** Benachrichtigungs-Übersicht; null = kein Zugriff. */
+    val signals: List<SignalGroup>? = null,
+    val signalsShowText: Boolean = false,
+    /** Zähler je Paket für das Dock. */
+    val badges: Map<String, Int> = emptyMap(),
 )
 
 /** Aktionen des Decks. */
@@ -104,6 +111,10 @@ class DeckActions(
     val onCommand: () -> Unit = {},
     val onSwipeUp: () -> Unit = {},
     val onSwipeRight: () -> Unit = {},
+    val onSwipeLeft: () -> Unit = {},
+    val onMic: () -> Unit = {},
+    val onSignal: (String) -> Unit = {},
+    val onToggleSignalText: () -> Unit = {},
     val onSwipeDown: () -> Unit = {},
     val onClock: () -> Unit = {},
     val onBattery: () -> Unit = {},
@@ -177,12 +188,17 @@ fun DeckScreen(state: DeckState, actions: DeckActions, modifier: Modifier = Modi
                     },
                 ) { _, dy -> total += dy }
             }
-            // Nach rechts wischen = Comms (Kontakte, Wähltastatur).
+            // Nach rechts wischen = Comms, nach links = Media.
             .pointerInput(Unit) {
                 var total = 0f
                 detectHorizontalDragGestures(
                     onDragStart = { total = 0f },
-                    onDragEnd = { if (total > threshold) actions.onSwipeRight() },
+                    onDragEnd = {
+                        when {
+                            total > threshold -> actions.onSwipeRight()
+                            total < -threshold -> actions.onSwipeLeft()
+                        }
+                    },
                 ) { _, dx -> total += dx }
             }
             .pointerInput(Unit) { detectTapGestures(onLongPress = { actions.onEditMode(true) }) },
@@ -209,6 +225,9 @@ fun DeckScreen(state: DeckState, actions: DeckActions, modifier: Modifier = Modi
                 state.nowPlaying?.let {
                     MediaPanel(it, state.art, actions.media.elapsedNow, actions.media.onOpen,
                         actions.media.onPrevious, actions.media.onPlayPause, actions.media.onNext)
+                }
+                state.signals?.takeIf { it.isNotEmpty() }?.let {
+                    SignalsPanel(it, state.signalsShowText, state.system.nowMillis, actions.onSignal, actions.onToggleSignalText)
                 }
                 state.events?.let {
                     EventsPanel(it, state.system.nowMillis, state.zone, state.use24h, actions.onEvent, actions.onCalendar)
@@ -237,9 +256,9 @@ fun DeckScreen(state: DeckState, actions: DeckActions, modifier: Modifier = Modi
             Spacer(Modifier.height(8.dp))
             GripLine()
             Spacer(Modifier.height(10.dp))
-            Dock(state.dock, actions.onApp, actions.onDockLongPress)
+            Dock(state.dock, state.badges, actions.onApp, actions.onDockLongPress)
             Spacer(Modifier.height(10.dp))
-            CommandBar(actions.onCommand)
+            CommandBar(actions.onCommand, actions.onMic)
         }
         SideRail(state.system, actions.rail, Modifier.width(MaiDims.RailWidth).fillMaxHeight())
     }
@@ -341,11 +360,15 @@ private fun SystemPanel(sys: SystemState, onBattery: () -> Unit, onStorage: () -
 private fun formatGb(v: Double): String = if (v >= 100) v.roundToInt().toString() else "%.1f".format(v)
 
 @Composable
-private fun Dock(dock: List<AppTile?>, onApp: (AppTile) -> Unit, onLongPress: (Int) -> Unit) {
+private fun Dock(dock: List<AppTile?>, badges: Map<String, Int>, onApp: (AppTile) -> Unit, onLongPress: (Int) -> Unit) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
         dock.forEachIndexed { i, tile ->
             if (tile != null) {
-                AppToken(tile, Modifier.weight(1f), size = 40.dp, showName = false, onLongClick = { onLongPress(i) }) { onApp(tile) }
+                AppToken(
+                    tile, Modifier.weight(1f), size = 40.dp, showName = false,
+                    badge = SignalDigest.badgeText(badges[tile.key.packageName] ?: 0),
+                    onLongClick = { onLongPress(i) },
+                ) { onApp(tile) }
             } else {
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                     HexToken(
@@ -360,13 +383,16 @@ private fun Dock(dock: List<AppTile?>, onApp: (AppTile) -> Unit, onLongPress: (I
 }
 
 @Composable
-private fun CommandBar(onClick: () -> Unit) {
+private fun CommandBar(onClick: () -> Unit, onMic: () -> Unit) {
     CommandShape(Modifier.clickable(role = Role.Button, onClick = onClick)) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
             MaiText("›", MaiType.Mono.copy(fontSize = MaiType.Title.fontSize), color = LocalAccent.current.main)
             Spacer(Modifier.width(10.dp))
             MaiLabel(stringResource(R.string.command_hint), Modifier.weight(1f), color = MaiColors.Text3)
-            MicGlyph()
+            Box(
+                Modifier.size(MaiDims.MinTouch).clickable(role = Role.Button, onClickLabel = stringResource(R.string.voice_start), onClick = onMic),
+                contentAlignment = Alignment.Center,
+            ) { MicGlyph() }
         }
     }
 }

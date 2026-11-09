@@ -32,6 +32,9 @@ import space.mai.mai_launcher.ui.comms.CommsActions
 import space.mai.mai_launcher.ui.comms.CommsScreen
 import space.mai.mai_launcher.ui.comms.CommsState
 import space.mai.mai_launcher.ui.deck.DeckActions
+import space.mai.mai_launcher.ui.media.MediaScreen
+import space.mai.mai_launcher.ui.media.MediaScreenActions
+import space.mai.mai_launcher.ui.media.MediaState
 import space.mai.mai_launcher.ui.deck.DeckScreen
 import space.mai.mai_launcher.ui.deck.DeckState
 import space.mai.mai_launcher.ui.deck.MediaActions
@@ -75,6 +78,12 @@ fun LauncherApp(vm: LauncherViewModel) {
     val commsQuery by vm.commsQuery.collectAsStateWithLifecycle()
     val keypadOpen by vm.keypadOpen.collectAsStateWithLifecycle()
     val dialed by vm.dialed.collectAsStateWithLifecycle()
+    val signals by vm.signals.collectAsStateWithLifecycle()
+    val signalsText by vm.signalsShowText.collectAsStateWithLifecycle()
+    val badges by vm.badges.collectAsStateWithLifecycle()
+    val listening by vm.voice.listening.collectAsStateWithLifecycle()
+    val queue by vm.media.queue.collectAsStateWithLifecycle()
+    val musicApps by vm.musicApps.collectAsStateWithLifecycle()
     val use24h = systemUses24h()
 
     val artBitmap = remember(art) { art?.asImageBitmap() }
@@ -96,6 +105,10 @@ fun LauncherApp(vm: LauncherViewModel) {
             onCommand = { vm.openIndex(withKeyboard = true) },
             onSwipeUp = { vm.openIndex(withKeyboard = false) },
             onSwipeRight = vm::openComms,
+            onSwipeLeft = vm::openMedia,
+            onMic = vm::startVoice,
+            onSignal = vm::openSignal,
+            onToggleSignalText = vm::toggleSignalText,
             onSwipeDown = vm.actions::expandNotifications,
             onClock = vm.actions::alarms,
             onBattery = vm.actions::batterySettings,
@@ -145,8 +158,23 @@ fun LauncherApp(vm: LauncherViewModel) {
             onAppInfo = vm::appInfo,
             onUninstall = vm::uninstall,
             onCommand = vm::runCommand,
+            onMic = vm::startVoice,
             onCall = { vm.call(it); vm.closeIndex() },
             onText = { vm.text(it); vm.closeIndex() },
+        )
+    }
+    val mediaActions = remember(vm) {
+        MediaScreenActions(
+            elapsedNow = SystemClock::elapsedRealtime,
+            onPlayPause = vm.media::playPause,
+            onPrevious = vm.media::previous,
+            onNext = vm.media::next,
+            onSeek = vm.media::seekTo,
+            onOpenPlayer = vm.media::openPlayer,
+            onOutput = vm.media::openOutput,
+            onApp = { vm.onAppTapped(it.key) },
+            onAllow = { vm.host?.openNotificationAccess() },
+            onClose = vm::onBack,
         )
     }
     val commsActions = remember(vm) {
@@ -199,6 +227,9 @@ fun LauncherApp(vm: LauncherViewModel) {
                             widgets = widgets,
                             editMode = editMode,
                             news = news,
+                            signals = if (access.signals) signals else null,
+                            signalsShowText = signalsText,
+                            badges = badges,
                         ),
                         deckActions,
                     )
@@ -212,11 +243,24 @@ fun LauncherApp(vm: LauncherViewModel) {
                             pickingDock = picking != null,
                             commands = if (picking != null) emptyList() else commands,
                             contacts = if (picking != null) emptyList() else contactHits,
+                            listening = listening,
                         ),
                         indexActions,
                         focusSignal = focus,
                     )
                     Screen.Widgets -> WidgetPicker(vm)
+                    Screen.Media -> CompositionLocalProvider(LocalAccent provides Accents.Amber) {
+                        MediaScreen(
+                            MediaState(
+                                nowPlaying = nowPlaying,
+                                art = artBitmap,
+                                queue = queue,
+                                musicApps = musicApps,
+                                access = access.signals,
+                            ),
+                            mediaActions,
+                        )
+                    }
                     Screen.Comms -> CompositionLocalProvider(LocalAccent provides Accents.Signal) {
                         val now = remember(commsLog) { System.currentTimeMillis() }
                         CommsScreen(

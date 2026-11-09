@@ -54,4 +54,28 @@ object Glyphs {
         drawLine(c, Offset(w * 0.5f, w * 0.15f), Offset(w * 0.5f, w * 0.85f), s)
         drawLine(c, Offset(w * 0.15f, w * 0.5f), Offset(w * 0.85f, w * 0.5f), s)
     }
+
+    /** Lautsprecher (Ausgabe/Lautstärke). */
+    val Speaker: DrawScope.(Color) -> Unit = { c ->
+        val w = size.width
+        val h = size.height
+        drawPath(Path().apply {
+            moveTo(w * 0.1f, h * 0.36f); lineTo(w * 0.32f, h * 0.36f); lineTo(w * 0.58f, h * 0.12f)
+            lineTo(w * 0.58f, h * 0.88f); lineTo(w * 0.32f, h * 0.64f); lineTo(w * 0.1f, h * 0.64f); close()
+        }, c)
+        drawArc(c, -45f, 90f, false, Offset(w * 0.5f, h * 0.25f), Size(w * 0.4f, h * 0.5f), style = Stroke(w * 0.08f))
+    }
+
+    /** Kästchen mit Pfeil (App öffnen). */
+    val Open: DrawScope.(Color) -> Unit = { c ->
+        val w = size.width
+        val s = w * 0.08f
+        drawPath(Path().apply {
+            moveTo(w * 0.45f, w * 0.15f); lineTo(w * 0.15f, w * 0.15f); lineTo(w * 0.15f, w * 0.85f)
+            lineTo(w * 0.85f, w * 0.85f); lineTo(w * 0.85f, w * 0.55f)
+        }, c, style = Stroke(s))
+        drawLine(c, Offset(w * 0.45f, w * 0.55f), Offset(w * 0.88f, w * 0.12f), s)
+        drawLine(c, Offset(w * 0.6f, w * 0.12f), Offset(w * 0.88f, w * 0.12f), s)
+        drawLine(c, Offset(w * 0.88f, w * 0.12f), Offset(w * 0.88f, w * 0.4f), s)
+    }
 }

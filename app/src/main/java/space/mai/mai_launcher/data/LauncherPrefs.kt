@@ -57,6 +57,15 @@ class LauncherPrefs(context: Context) {
         _maiSeen.value = next
     }
 
+    private val _signalsText = MutableStateFlow(prefs.getBoolean("signals_show_text", false))
+    /** Benachrichtigungstext auf dem Startbildschirm zeigen (Standard: aus, nur App und Anzahl). */
+    val signalsShowText: StateFlow<Boolean> = _signalsText.asStateFlow()
+
+    fun setSignalsShowText(on: Boolean) {
+        prefs.edit { putBoolean("signals_show_text", on) }
+        _signalsText.value = on
+    }
+
     companion object {
         const val DOCK_SLOTS = 4
     }

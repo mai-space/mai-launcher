@@ -96,6 +96,8 @@ data class IndexState(
     /** Befehle zur Eingabe (Rechner, Timer, …); Websuche immer zuletzt. */
     val commands: List<Command> = emptyList(),
     val contacts: List<Contact> = emptyList(),
+    /** Spracheingabe hört gerade zu. */
+    val listening: Boolean = false,
 )
 
 class IndexActions(
@@ -108,6 +110,7 @@ class IndexActions(
     val onCommand: (Command) -> Unit = {},
     val onCall: (Contact) -> Unit = {},
     val onText: (Contact) -> Unit = {},
+    val onMic: () -> Unit = {},
 )
 
 /** Eine Zeile der Liste: Buchstaben-Kopf oder App. */
@@ -208,7 +211,7 @@ fun IndexScreen(
             }
             GripLine()
             Spacer(Modifier.height(10.dp))
-            SearchField(state.query, actions, focusSignal)
+            SearchField(state.query, state.listening, actions, focusSignal)
         }
         LetterRail(
             letters = sections.map { it.letter },
@@ -339,7 +342,7 @@ private fun ActionChip(text: String, color: androidx.compose.ui.graphics.Color =
 }
 
 @Composable
-private fun SearchField(query: String, actions: IndexActions, focusSignal: Int) {
+private fun SearchField(query: String, listening: Boolean, actions: IndexActions, focusSignal: Int) {
     val accent = LocalAccent.current.main
     val focus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
@@ -349,12 +352,17 @@ private fun SearchField(query: String, actions: IndexActions, focusSignal: Int) 
             keyboard?.show()
         }
     }
-    CommandShape(active = query.isNotEmpty()) {
+    CommandShape(active = query.isNotEmpty() || listening) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
             MaiText("›", MaiType.Mono.copy(fontSize = MaiType.Title.fontSize), color = accent)
             Spacer(Modifier.width(10.dp))
             Box(Modifier.weight(1f)) {
-                if (query.isEmpty()) MaiLabel(stringResource(R.string.filter_hint), color = MaiColors.Text3)
+                if (query.isEmpty()) {
+                    MaiLabel(
+                        stringResource(if (listening) R.string.voice_listening else R.string.filter_hint),
+                        color = if (listening) accent else MaiColors.Text3,
+                    )
+                }
                 BasicTextField(
                     value = query,
                     onValueChange = actions.onQuery,
@@ -370,7 +378,14 @@ private fun SearchField(query: String, actions: IndexActions, focusSignal: Int) 
                     modifier = Modifier.fillMaxWidth().focusRequester(focus),
                 )
             }
-            MicGlyph()
+            Box(
+                Modifier.size(MaiDims.MinTouch).combinedClickable(
+                    role = Role.Button,
+                    onClickLabel = stringResource(if (listening) R.string.voice_stop else R.string.voice_start),
+                    onClick = actions.onMic,
+                ),
+                contentAlignment = Alignment.Center,
+            ) { MicGlyph(color = accent) }
         }
     }
 }
