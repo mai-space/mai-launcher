@@ -94,6 +94,7 @@ fun LauncherApp(vm: LauncherViewModel) {
     val settingsDock by vm.settingsDock.collectAsStateWithLifecycle()
     val haptics by vm.haptics.collectAsStateWithLifecycle()
     val sounds by vm.sounds.collectAsStateWithLifecycle()
+    val backupStatus by vm.backupStatus.collectAsStateWithLifecycle()
     val use24h = systemUses24h()
 
     val artBitmap = remember(art) { art?.asImageBitmap() }
@@ -219,6 +220,8 @@ fun LauncherApp(vm: LauncherViewModel) {
             onContacts = vm::settingsContacts,
             onSystemSettings = vm.actions::systemSettings,
             onAppInfo = vm.actions::launcherInfo,
+            onExport = vm::exportLayout,
+            onImport = vm::importLayout,
             onClose = vm::onBack,
         )
     }
@@ -302,6 +305,7 @@ fun LauncherApp(vm: LauncherViewModel) {
                             widgetCount = widgetIds.size,
                             feedCount = news.urls.size,
                             version = vm.version,
+                            backup = backupStatus,
                         ),
                         settingsActions,
                     )

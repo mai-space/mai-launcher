@@ -184,4 +184,13 @@
     <string name="settings_system">System</string>
     <string name="settings_widgets_count">%1$d on the deck</string>
     <string name="settings_add_widget">Add widget</string>
+    <string name="settings_backup">Backup</string>
+    <string name="settings_export">Export layout</string>
+    <string name="settings_export_body">Dock, deck widgets, feeds, destinations and settings as a text file. No app history, contacts or notifications.</string>
+    <string name="settings_import">Import layout</string>
+    <string name="settings_import_body">Restore from such a file, also on a new phone. Widgets ask for permission once.</string>
+    <string name="settings_save">SAVE</string>
+    <string name="settings_backup_exported">Layout saved.</string>
+    <string name="settings_backup_failed">That did not work. Is it a launcher layout file?</string>
+    <string name="settings_backup_imported">Imported: %1$d dock apps, %2$d feeds, %3$d widgets to add.</string>
 </resources>

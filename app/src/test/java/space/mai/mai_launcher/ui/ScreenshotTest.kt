@@ -41,6 +41,7 @@ import space.mai.mai_launcher.ui.index.IndexState
 import java.time.LocalDateTime
 import space.mai.mai_launcher.domain.HapticLevel
 import space.mai.mai_launcher.domain.SoundLevel
+import space.mai.mai_launcher.ui.settings.BackupStatus
 import space.mai.mai_launcher.ui.settings.DockSlot
 import space.mai.mai_launcher.ui.settings.SettingsActions
 import space.mai.mai_launcher.ui.settings.SettingsScreen
@@ -407,6 +408,7 @@ class ScreenshotTest {
                         sounds = SoundLevel.Quiet,
                         widgetCount = 2,
                         version = "0.1.0",
+                        backup = BackupStatus.Imported(dock = 4, feeds = 2, widgets = 3),
                     ),
                     SettingsActions(),
                 )
