@@ -2,7 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Bewusst KEINE INTERNET-Berechtigung: nichts verlässt das Gerät. -->
+    <!-- INTERNET nur für die selbst eingetragenen RSS-Feeds (feeds/FeedRepository).
+         Sonst geht nichts ins Netz: keine Analytics, keine Bilder, keine Konten. -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <!-- Statusleiste/Benachrichtigungen per Wischgeste nach unten aufklappen (normal). -->
     <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />

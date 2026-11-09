@@ -62,6 +62,7 @@ fun LauncherApp(vm: LauncherViewModel) {
     val destinations by vm.destinations.collectAsStateWithLifecycle()
     val widgetIds by vm.widgets.ids.collectAsStateWithLifecycle()
     val editMode by vm.editMode.collectAsStateWithLifecycle()
+    val news by vm.feeds.state.collectAsStateWithLifecycle()
     val use24h = systemUses24h()
 
     val artBitmap = remember(art) { art?.asImageBitmap() }
@@ -116,6 +117,10 @@ fun LauncherApp(vm: LauncherViewModel) {
             onMoveWidget = vm.widgets::move,
             onRemoveWidget = vm.widgets::remove,
             widgetContent = { slot -> HostedWidget(vm.widgets, slot) },
+            onOpenLink = vm::openLink,
+            onRefreshNews = { vm.feeds.refresh(force = true) },
+            onAddFeed = vm.feeds::add,
+            onRemoveFeed = vm.feeds::remove,
         )
     }
     val indexActions = remember(vm) {
@@ -161,6 +166,7 @@ fun LauncherApp(vm: LauncherViewModel) {
                             destinations = destinations,
                             widgets = widgets,
                             editMode = editMode,
+                            news = news,
                         ),
                         deckActions,
                     )

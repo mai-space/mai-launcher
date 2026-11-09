@@ -75,4 +75,14 @@
     <string name="rail_sound_ring">RING</string>
     <string name="rail_sound_vibrate">VIBRATE</string>
     <string name="rail_sound_mute">MUTE</string>
+    <string name="panel_news">News</string>
+    <string name="news_loading">LOADING</string>
+    <string name="news_loading_body">Loading your feeds…</string>
+    <string name="news_failed">%d FEED(S) UNREACHABLE</string>
+    <string name="news_empty">No entries yet. Tap to refresh.</string>
+    <string name="news_add">ADD FEED (HTTPS)</string>
+    <string name="news_invalid">NOT A VALID HTTPS ADDRESS</string>
+    <string name="age_minutes">%d MIN</string>
+    <string name="age_hours">%d H</string>
+    <string name="age_days">%d D</string>
 </resources>

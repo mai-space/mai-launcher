@@ -18,6 +18,7 @@ import space.mai.mai_launcher.apps.AppRepository
 import space.mai.mai_launcher.apps.IconLoader
 import space.mai.mai_launcher.calendar.CalendarRepository
 import space.mai.mai_launcher.data.LaunchLog
+import space.mai.mai_launcher.feeds.FeedRepository
 import space.mai.mai_launcher.data.LauncherPrefs
 import space.mai.mai_launcher.domain.AppInfo
 import space.mai.mai_launcher.domain.AppKey
@@ -52,6 +53,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     val media = MediaHub(app)
     val calendar = CalendarRepository(app, viewModelScope)
     val widgets = WidgetHost(app)
+    val feeds = FeedRepository(app, viewModelScope)
     private val homeRole = HomeRole(app)
     private val prefs = LauncherPrefs(app)
     private val log = LaunchLog(app, viewModelScope).also { it.load() }
@@ -121,6 +123,13 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         system.refresh()
         widgets.startListening()
         refreshAccess()
+        feeds.refresh()
+    }
+
+    /** Link eines News-Eintrags im Standard-Browser öffnen. */
+    fun openLink(url: String) {
+        val ctx = getApplication<Application>()
+        runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
     }
 
     fun onHidden() {

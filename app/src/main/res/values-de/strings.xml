@@ -73,4 +73,14 @@
     <string name="rail_sound_ring">TON</string>
     <string name="rail_sound_vibrate">VIBR.</string>
     <string name="rail_sound_mute">STUMM</string>
+    <string name="panel_news">News</string>
+    <string name="news_loading">LÄDT</string>
+    <string name="news_loading_body">Feeds werden geladen …</string>
+    <string name="news_failed">%d FEED(S) NICHT ERREICHBAR</string>
+    <string name="news_empty">Noch keine Einträge. Antippen zum Aktualisieren.</string>
+    <string name="news_add">FEED HINZUFÜGEN (HTTPS)</string>
+    <string name="news_invalid">KEINE GÜLTIGE HTTPS-ADRESSE</string>
+    <string name="age_minutes">%d MIN</string>
+    <string name="age_hours">%d STD</string>
+    <string name="age_days">%d T</string>
 </resources>

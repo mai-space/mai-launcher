@@ -51,6 +51,7 @@ import space.mai.mai_launcher.design.MaiText
 import space.mai.mai_launcher.design.MaiType
 import space.mai.mai_launcher.design.glowBorder
 import space.mai.mai_launcher.domain.CalendarEvent
+import space.mai.mai_launcher.domain.FeedItem
 import space.mai.mai_launcher.domain.NavInfo
 import space.mai.mai_launcher.domain.NowPlaying
 import space.mai.mai_launcher.domain.TimeLabels
@@ -347,4 +348,103 @@ fun EditChip(text: String, onClick: () -> Unit, color: Color = LocalAccent.curre
             .padding(horizontal = 14.dp),
         contentAlignment = Alignment.Center,
     ) { MaiLabel(text, color = color) }
+}
+
+// ---------------------------------------------------------------- News (RSS)
+
+/** Neueste Einträge der eigenen Feeds (nur Text). Im Bearbeiten-Modus Feeds verwalten. */
+@Composable
+fun NewsPanel(
+    items: List<FeedItem>,
+    urls: List<String>,
+    failed: Int,
+    loading: Boolean,
+    nowMillis: Long,
+    editing: Boolean,
+    onOpen: (String) -> Unit,
+    onRefresh: () -> Unit,
+    onAdd: (String) -> Boolean,
+    onRemove: (String) -> Unit,
+) {
+    val meta = when {
+        loading -> stringResource(R.string.news_loading)
+        failed > 0 -> stringResource(R.string.news_failed, failed)
+        else -> null
+    }
+    MaiPanel(
+        stringResource(R.string.panel_news),
+        Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onRefresh),
+        meta = meta,
+        accent = if (failed > 0 && items.isEmpty()) MaiColors.Alert else LocalAccent.current.main,
+    ) {
+        if (editing) {
+            urls.forEach { url ->
+                Row(Modifier.fillMaxWidth().heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically) {
+                    MaiText(url.removePrefix("https://"), MaiType.Body, Modifier.weight(1f))
+                    EditChip(stringResource(R.string.widget_remove), { onRemove(url) }, MaiColors.Alert)
+                }
+            }
+            FeedField(onAdd)
+            return@MaiPanel
+        }
+        if (items.isEmpty()) {
+            Spacer(Modifier.height(6.dp))
+            MaiText(stringResource(if (loading) R.string.news_loading_body else R.string.news_empty), MaiType.Body, maxLines = 2)
+        }
+        items.forEach { item ->
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .then(if (item.link != null) Modifier.clickable(role = Role.Button) { onOpen(item.link) } else Modifier)
+                    .padding(vertical = 6.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    MaiLabel(item.source, Modifier.weight(1f), color = LocalAccent.current.main)
+                    item.publishedMillis?.let { MaiLabel(ageLabel(nowMillis - it), color = MaiColors.Text3) }
+                }
+                MaiText(item.title, MaiType.Body.copy(color = MaiColors.Text, fontSize = MaiType.Body.fontSize * 1.1f), maxLines = 2)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ageLabel(ms: Long): String {
+    val min = (ms / 60_000).coerceAtLeast(0)
+    return when {
+        min < 60 -> stringResource(R.string.age_minutes, min)
+        min < 48 * 60 -> stringResource(R.string.age_hours, min / 60)
+        else -> stringResource(R.string.age_days, min / (24 * 60))
+    }
+}
+
+@Composable
+private fun FeedField(onAdd: (String) -> Boolean) {
+    var text by remember { mutableStateOf("") }
+    var invalid by remember { mutableStateOf(false) }
+    val shape = ChamferShape(6.dp)
+    Column(Modifier.fillMaxWidth().padding(top = 6.dp)) {
+        MaiLabel(stringResource(if (invalid) R.string.news_invalid else R.string.news_add), color = if (invalid) MaiColors.Alert else MaiColors.Text2)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.weight(1f).height(44.dp).background(MaiColors.Panel2, shape).glowBorder(shape, MaiColors.Line).padding(horizontal = 10.dp),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                if (text.isEmpty()) MaiText("https://…/feed.xml", MaiType.Body, color = MaiColors.Text3)
+                BasicTextField(
+                    value = text,
+                    onValueChange = { text = it; invalid = false },
+                    singleLine = true,
+                    textStyle = MaiType.Body.copy(color = MaiColors.Text),
+                    cursorBrush = SolidColor(LocalAccent.current.main),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done, keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri),
+                    keyboardActions = KeyboardActions(onDone = { if (onAdd(text)) text = "" else invalid = true }),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            EditChip("+", { if (onAdd(text)) text = "" else invalid = true })
+        }
+    }
 }
