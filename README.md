@@ -13,7 +13,8 @@ Concept: [`project-docs/KONZEPT.md`](project-docs/KONZEPT.md)
 ## Status
 
 Deck (home) with now playing, navigation (next turn from the maps app),
-upcoming events, quick destinations, hosted Android widgets, a news panel
+upcoming events, quick destinations, hosted Android widgets (one widget of
+each installed Mai app is added automatically), a news panel
 for your own RSS/Atom feeds (HTTPS only, text only) and an edit mode;
 Index (all apps, search, A–Z rail, "likely now"); side rail for Wi-Fi, BT,
 sound mode (ring/vibrate/mute), DND, torch and rotation. Every permission is
@@ -29,7 +30,32 @@ Privacy: the only network access is fetching the feeds you add yourself.
 ```
 
 Requires JDK 17+ and the Android SDK (compileSdk 36). CI builds
-`mai-launcher.apk` on every push. Install it, open it and tap
-"Set as home screen" in the Set up panel.
+`mai-launcher.apk` on every push.
+
+## Install
+
+Open the APK, then tap "Set as home screen" in the Set up panel.
+
+**Google Play Protect may block it** ("App wurde zum Schutz deines Geräts
+blockiert", only an OK button). Google blocks apps installed from a browser,
+messenger or file manager that declare a notification listener, which the
+launcher needs for the media player and navigation. Signing does not change
+this. Ways around it:
+
+- Play Store → profile picture → Play Protect → ⚙ → turn off "Scan apps with
+  Play Protect", install the APK, turn it back on.
+- Or install over USB: `adb install -r mai-launcher.apk`.
+
+Notification access stays off until you grant it in the Set up panel.
+
+**Stable signature for updates.** Branch builds are signed with the CI
+runner's debug key, which changes between runs, so an update over an existing
+install can fail ("App nicht installiert"). Pushes to `main` are signed with
+the upload key once these repository secrets are set (Settings → Secrets and
+variables → Actions): `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`,
+`ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` (same names as in the other Mai
+apps, so the same upload keystore can be reused). Locally, a `key.properties`
+in the project root with `storeFile`, `storePassword`, `keyAlias` and
+`keyPassword` does the same; it is in `.gitignore`.
 
 Fonts: Barlow, Barlow Condensed, JetBrains Mono (SIL OFL 1.1, see `licenses/`).

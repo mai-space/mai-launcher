@@ -166,7 +166,7 @@ class ScreenshotTest {
                         likelyWindow = 20 to 22,
                         appCount = apps.size,
                         zone = zone,
-                        setup = listOf(SetupItem.Home, SetupItem.Signals, SetupItem.Calendar),
+                        setup = listOf(SetupItem.Home, SetupItem.MaiWidgets, SetupItem.Signals, SetupItem.Calendar),
                         destinations = listOf("Hafenstraße 1, Hamburg", ""),
                         editMode = true,
                     ),

@@ -20,9 +20,42 @@ jobs:
     name: Test, Lint & APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      # Signierter Build nur bei Push auf main und nur mit gesetzten Secrets;
+      # sonst wie bisher mit Debug-Schlüssel.
+      SIGNED: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.ANDROID_KEYSTORE_BASE64 != '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      # Keystore und key.properties nur im Runner, nie im Repo oder Log.
+      - name: Write signing config
+        if: env.SIGNED == 'true'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          missing=""
+          [ -n "$KEYSTORE_PASSWORD" ] || missing="$missing ANDROID_KEYSTORE_PASSWORD"
+          [ -n "$KEY_ALIAS" ] || missing="$missing ANDROID_KEY_ALIAS"
+          [ -n "$KEY_PASSWORD" ] || missing="$missing ANDROID_KEY_PASSWORD"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing secrets:$missing (see README, Install)"
+            exit 1
+          fi
+          umask 077
+          keystore="$RUNNER_TEMP/upload-keystore.jks"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$keystore"
+          {
+            printf 'storeFile=%s\n' "$keystore"
+            printf 'storePassword=%s\n' "$KEYSTORE_PASSWORD"
+            printf 'keyAlias=%s\n' "$KEY_ALIAS"
+            printf 'keyPassword=%s\n' "$KEY_PASSWORD"
+          } > key.properties
+          # Ab hier bricht Gradle ab, statt mit dem Debug-Schlüssel zu signieren.
+          echo "REQUIRE_RELEASE_SIGNING=true" >> "$GITHUB_ENV"
 
       # ubuntu-latest bringt ANDROID_HOME mit.
       - name: Setup Java
@@ -42,13 +75,17 @@ jobs:
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
 
-      # Release-Build mit R8; bis zum Upload-Schlüssel mit Debug-Schlüssel signiert.
+      # Release-Build mit R8; auf main mit Upload-Schlüssel, sonst Debug-Schlüssel.
       - name: Build APK
         run: |
           ./gradlew :app:assembleRelease
           cp app/build/outputs/apk/release/app-release.apk mai-launcher.apk
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+
+      - name: Remove signing config
+        if: always()
+        run: rm -f key.properties "$RUNNER_TEMP/upload-keystore.jks"
 
       - name: Upload APK
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
