@@ -5,7 +5,9 @@ import androidx.core.content.edit
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import space.mai.mai_launcher.domain.AccentChoice
 import space.mai.mai_launcher.domain.AppKey
+import space.mai.mai_launcher.domain.Appearance
 import space.mai.mai_launcher.domain.HapticLevel
 import space.mai.mai_launcher.domain.SoundLevel
 
@@ -93,6 +95,27 @@ class LauncherPrefs(context: Context) {
     fun setForecast(on: Boolean) {
         prefs.edit { putBoolean("mai_forecast", on) }
         _forecast.value = on
+    }
+
+    private val _appearance = MutableStateFlow(readAppearance())
+    /** Grundfarbe und Komfort-Modi. */
+    val appearance: StateFlow<Appearance> = _appearance.asStateFlow()
+
+    private fun readAppearance() = Appearance(
+        accent = AccentChoice.of(prefs.getInt("accent", 0)),
+        highContrast = prefs.getBoolean("comfort_contrast", false),
+        reduceMotion = prefs.getBoolean("comfort_motion", false),
+        large = prefs.getBoolean("comfort_large", false),
+    )
+
+    fun setAppearance(a: Appearance) {
+        prefs.edit {
+            putInt("accent", a.accent.ordinal)
+            putBoolean("comfort_contrast", a.highContrast)
+            putBoolean("comfort_motion", a.reduceMotion)
+            putBoolean("comfort_large", a.large)
+        }
+        _appearance.value = a
     }
 
     companion object {

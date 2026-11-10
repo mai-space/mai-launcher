@@ -40,6 +40,13 @@ import space.mai.mai_launcher.summary.MaiSummaryReader
 import kotlinx.coroutines.launch
 import space.mai.mai_launcher.domain.LayoutBackupCodec
 import space.mai.mai_launcher.ui.settings.BackupStatus
+import android.os.SystemClock
+import android.provider.Settings
+import space.mai.mai_launcher.design.Comfort
+import space.mai.mai_launcher.design.ComfortState
+import space.mai.mai_launcher.domain.Appearance
+import space.mai.mai_launcher.domain.AccentChoice
+import space.mai.mai_launcher.domain.AppearanceRules
 import space.mai.mai_launcher.ui.settings.DockSlot
 import space.mai.mai_launcher.data.LauncherPrefs
 import space.mai.mai_launcher.domain.AppInfo
@@ -96,6 +103,45 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     val haptics = prefs.haptics
     val sounds = prefs.sounds
     val feedback = FeedbackPlayer(app, prefs.haptics, prefs.sounds)
+
+    // --- Darstellung: Grundfarbe und Komfort-Modi ---
+
+    val appearance = prefs.appearance
+    private var systemAnimatorScale = readAnimatorScale()
+    private var lastPowerOn = 0L
+
+    init {
+        // Main.immediate: der erste Wert steht schon vor dem ersten Bild fest.
+        viewModelScope.launch { prefs.appearance.collect { applyComfort(it) } }
+    }
+
+    private fun readAnimatorScale(): Float = runCatching {
+        Settings.Global.getFloat(getApplication<Application>().contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+    }.getOrDefault(1f)
+
+    private fun applyComfort(a: Appearance) {
+        ComfortState.current = Comfort(
+            highContrast = a.highContrast,
+            reduceMotion = AppearanceRules.reduceMotion(a.reduceMotion, systemAnimatorScale),
+            large = a.large,
+        )
+    }
+
+    fun setAccent(choice: AccentChoice) {
+        prefs.setAppearance(prefs.appearance.value.copy(accent = choice))
+    }
+
+    fun toggleContrast() = prefs.setAppearance(prefs.appearance.value.let { it.copy(highContrast = !it.highContrast) })
+    fun toggleReduceMotion() = prefs.setAppearance(prefs.appearance.value.let { it.copy(reduceMotion = !it.reduceMotion) })
+    fun toggleLarge() = prefs.setAppearance(prefs.appearance.value.let { it.copy(large = !it.large) })
+
+    /** Einschalt-Animation auslösen (entprellt: Home-Taste und Fortsetzen kommen oft zusammen). */
+    private fun powerOn() {
+        val now = SystemClock.uptimeMillis()
+        if (now - lastPowerOn < 400) return
+        lastPowerOn = now
+        ComfortState.powerOn++
+    }
 
     var host: LauncherHost? = null
 
@@ -337,6 +383,10 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             signalsShowText = prefs.signalsShowText.value,
             haptics = prefs.haptics.value,
             sounds = prefs.sounds.value,
+            accent = prefs.appearance.value.accent,
+            highContrast = prefs.appearance.value.highContrast,
+            reduceMotion = prefs.appearance.value.reduceMotion,
+            large = prefs.appearance.value.large,
         )
         host?.exportLayout(LayoutBackupCodec.fileName(java.time.LocalDate.now()), LayoutBackupCodec.encode(backup))
     }
@@ -358,6 +408,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         b.signalsShowText?.let(prefs::setSignalsShowText)
         b.haptics?.let(prefs::setHaptics)
         b.sounds?.let(prefs::setSounds)
+        prefs.setAppearance(b.appearanceOver(prefs.appearance.value))
         // Nur installierte Widgets, die noch nicht auf dem Deck sind.
         val installed = widgets.installedRefs().toSet()
         val placed = widgets.ids.value.mapNotNull { id ->
@@ -436,6 +487,9 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Beim Anzeigen: Beobachter starten und Freigaben neu prüfen. */
     fun onVisible() {
+        systemAnimatorScale = readAnimatorScale()
+        applyComfort(prefs.appearance.value)
+        if (_screen.value == Screen.Deck) powerOn()
         system.start()
         system.refresh()
         widgets.startListening()
@@ -527,6 +581,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         if (_screen.value == Screen.Media || _screen.value == Screen.Settings) _screen.value = Screen.Deck
         pickReturn = Screen.Deck
         closeIndex()
+        powerOn()
     }
 
     fun onBack(): Boolean {

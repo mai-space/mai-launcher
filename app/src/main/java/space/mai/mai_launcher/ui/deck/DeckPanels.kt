@@ -46,6 +46,7 @@ import space.mai.mai_launcher.design.LocalAccent
 import space.mai.mai_launcher.design.LocalFeedback
 import space.mai.mai_launcher.design.MaiBar
 import space.mai.mai_launcher.design.MaiColors
+import space.mai.mai_launcher.design.MaiDims
 import space.mai.mai_launcher.design.MaiLabel
 import space.mai.mai_launcher.design.MaiPanel
 import space.mai.mai_launcher.design.MaiText
@@ -224,7 +225,7 @@ fun DestinationsPanel(destinations: List<String>, editing: Boolean, onGo: (Int) 
                         Row(
                             Modifier
                                 .weight(1f)
-                                .heightIn(min = 48.dp)
+                                .heightIn(min = MaiDims.ListRow)
                                 .background(MaiColors.Panel2, shape)
                                 .glowBorder(shape, MaiColors.Signal)
                                 .clickable(role = Role.Button) { onGo(i) }
@@ -400,7 +401,7 @@ fun NewsPanel(
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 48.dp)
+                    .heightIn(min = MaiDims.ListRow)
                     .then(if (item.link != null) Modifier.clickable(role = Role.Button) { onOpen(item.link) } else Modifier)
                     .padding(vertical = 6.dp),
             ) {
@@ -482,7 +483,7 @@ fun SignalsPanel(
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 48.dp)
+                    .heightIn(min = MaiDims.ListRow)
                     .clickable(role = Role.Button) { onOpen(g.latestKey) }
                     .padding(vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,

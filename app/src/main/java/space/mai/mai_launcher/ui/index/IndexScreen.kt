@@ -272,7 +272,7 @@ private fun AppRow(tile: AppTile, highlighted: Boolean, actions: IndexActions) {
         Row(
             Modifier
                 .fillMaxWidth()
-                .height(MaiDims.MinTouch)
+                .height(MaiDims.ListRow)
                 .combinedClickable(
                     role = Role.Button,
                     onClick = { feedback.tap(); actions.onApp(tile) },

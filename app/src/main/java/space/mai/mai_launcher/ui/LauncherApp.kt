@@ -24,7 +24,12 @@ import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import space.mai.mai_launcher.design.Accents
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.ui.unit.Density
+import space.mai.mai_launcher.design.ComfortState
+import space.mai.mai_launcher.design.toAccent
+import space.mai.mai_launcher.domain.AppearanceRules
 import space.mai.mai_launcher.design.LocalAccent
 import space.mai.mai_launcher.design.LocalFeedback
 import space.mai.mai_launcher.ui.settings.SettingsActions
@@ -99,6 +104,9 @@ fun LauncherApp(vm: LauncherViewModel) {
     val forecastApps by vm.forecastApps.collectAsStateWithLifecycle()
     val forecastOn by vm.forecastOn.collectAsStateWithLifecycle()
     val use24h = systemUses24h()
+    val appearance by vm.appearance.collectAsStateWithLifecycle()
+    val areas = remember(appearance.accent) { AppearanceRules.areas(appearance.accent) }
+    val comfort = ComfortState.current
 
     val artBitmap = remember(art) { art?.asImageBitmap() }
     val widgets = remember(widgetIds) {
@@ -227,7 +235,17 @@ fun LauncherApp(vm: LauncherViewModel) {
             onExport = vm::exportLayout,
             onImport = vm::importLayout,
             onClose = vm::onBack,
+            onAccent = vm::setAccent,
+            onContrast = vm::toggleContrast,
+            onReduceMotion = vm::toggleReduceMotion,
+            onLarge = vm::toggleLarge,
         )
+    }
+
+    // Große Ansicht: Schrift um 15 % größer (zusätzlich zur Systemeinstellung).
+    val baseDensity = LocalDensity.current
+    val density = remember(baseDensity, comfort.large) {
+        if (comfort.large) Density(baseDensity.density, baseDensity.fontScale * AppearanceRules.LARGE_FONT_SCALE) else baseDensity
     }
 
     // Leiser Ton/Ticken beim Wechsel des Bildschirms (nicht beim ersten Anzeigen).
@@ -240,7 +258,8 @@ fun LauncherApp(vm: LauncherViewModel) {
     BackHandler(enabled = screen != Screen.Deck || editMode) { vm.onBack() }
 
     CompositionLocalProvider(
-        LocalAccent provides Accents.Ion,
+        LocalAccent provides areas.deck.toAccent(),
+        LocalDensity provides density,
         LocalIconProvider provides iconProvider,
         LocalFeedback provides vm.feedback,
     ) {
@@ -248,7 +267,9 @@ fun LauncherApp(vm: LauncherViewModel) {
             AnimatedContent(
                 targetState = screen,
                 transitionSpec = {
-                    if (targetState != Screen.Deck) {
+                    if (comfort.reduceMotion) {
+                        EnterTransition.None togetherWith ExitTransition.None
+                    } else if (targetState != Screen.Deck) {
                         (slideInVertically(tween(220)) { it / 6 } + fadeIn(tween(160))) togetherWith fadeOut(tween(120))
                     } else {
                         fadeIn(tween(160)) togetherWith (slideOutVertically(tween(200)) { it / 6 } + fadeOut(tween(140)))
@@ -313,10 +334,11 @@ fun LauncherApp(vm: LauncherViewModel) {
                             feedCount = news.urls.size,
                             version = vm.version,
                             backup = backupStatus,
+                            appearance = appearance,
                         ),
                         settingsActions,
                     )
-                    Screen.Media -> CompositionLocalProvider(LocalAccent provides Accents.Amber) {
+                    Screen.Media -> CompositionLocalProvider(LocalAccent provides areas.media.toAccent()) {
                         MediaScreen(
                             MediaState(
                                 nowPlaying = nowPlaying,
@@ -328,7 +350,7 @@ fun LauncherApp(vm: LauncherViewModel) {
                             mediaActions,
                         )
                     }
-                    Screen.Comms -> CompositionLocalProvider(LocalAccent provides Accents.Signal) {
+                    Screen.Comms -> CompositionLocalProvider(LocalAccent provides areas.comms.toAccent()) {
                         val now = remember(commsLog) { System.currentTimeMillis() }
                         CommsScreen(
                             CommsState(

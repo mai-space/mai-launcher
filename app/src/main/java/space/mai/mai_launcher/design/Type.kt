@@ -38,7 +38,7 @@ object MaiType {
         fontSize = 13.sp, letterSpacing = 2.4.sp, color = MaiColors.Text,
     )
     /** Kleine Versal-Beschriftung (immer Großbuchstaben übergeben). */
-    val Label = TextStyle(
+    val Label: TextStyle get() = TextStyle(
         fontFamily = MaiFonts.Condensed, fontWeight = FontWeight.SemiBold,
         fontSize = 10.sp, letterSpacing = 1.6.sp, color = MaiColors.Text2,
     )
@@ -55,12 +55,12 @@ object MaiType {
         fontFamily = MaiFonts.Body, fontWeight = FontWeight.SemiBold,
         fontSize = 18.sp, color = MaiColors.Text,
     )
-    val Body = TextStyle(
+    val Body: TextStyle get() = TextStyle(
         fontFamily = MaiFonts.Body, fontWeight = FontWeight.Normal,
         fontSize = 13.sp, color = MaiColors.Text2,
     )
     /** Zahlen: Uhrzeit, Prozent, Dauer – Monospace, damit nichts springt. */
-    val Mono = TextStyle(
+    val Mono: TextStyle get() = TextStyle(
         fontFamily = MaiFonts.Mono, fontWeight = FontWeight.Medium,
         fontSize = 13.sp, letterSpacing = 1.sp, color = MaiColors.Text2,
     )

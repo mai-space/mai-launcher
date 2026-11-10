@@ -19,7 +19,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -102,12 +104,13 @@ fun MainFrame(
 ) {
     val accent = LocalAccent.current
     val frameShape = ChamferShape(MaiDims.FrameChamfer)
+    val powerOn = LocalPowerOn.current
     Box(modifier.padding(top = 10.dp)) {
         Column(
             Modifier
                 .fillMaxSize()
                 .background(MaiColors.Void.copy(alpha = 0.6f), frameShape)
-                .glowBorder(frameShape, accent.main, 1.6.dp, GlowLevel.Frame)
+                .glowBorder(frameShape, accent.main, 1.6.dp, GlowLevel.Frame, trim = { powerOnFrame(powerOn()) })
                 .padding(start = MaiDims.Gutter, end = MaiDims.Gutter, top = 18.dp, bottom = 14.dp),
             content = content,
         )
@@ -148,7 +151,7 @@ fun MaiPanel(
     val shape = ChamferShape(MaiDims.PanelChamfer)
     Box(
         modifier
-            .background(MaiColors.Panel.copy(alpha = 0.85f), shape)
+            .background(MaiColors.Panel.copy(alpha = if (ComfortState.current.highContrast) 1f else 0.85f), shape)
             .glowBorder(shape, MaiColors.Line),
     ) {
         Box(Modifier.size(3.dp, 16.dp).background(accent))
@@ -264,13 +267,14 @@ fun GripLine(modifier: Modifier = Modifier) {
     }
 }
 
-/** Dünner Fortschrittsbalken mit leuchtendem Anteil. */
+/** Dünner Fortschrittsbalken mit leuchtendem Anteil; wächst zum neuen Wert. */
 @Composable
 fun MaiBar(fraction: Float, modifier: Modifier = Modifier, color: Color = LocalAccent.current.main) {
+    val shown by animateFloatAsState(fraction.coerceIn(0f, 1f), motion(400), label = "bar")
     Box(modifier.height(3.dp).background(MaiColors.Line)) {
         Box(
             Modifier
-                .fillMaxWidth(fraction.coerceIn(0f, 1f))
+                .fillMaxWidth(shown)
                 .height(3.dp)
                 .background(color),
         )

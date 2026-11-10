@@ -38,6 +38,11 @@ import space.mai.mai_launcher.domain.SoundLevel
 import space.mai.mai_launcher.design.MaiColors
 import space.mai.mai_launcher.design.MaiLabel
 import space.mai.mai_launcher.design.MaiPanel
+import space.mai.mai_launcher.design.MaiDims
+import space.mai.mai_launcher.design.GlowLevel
+import space.mai.mai_launcher.design.swatch
+import space.mai.mai_launcher.domain.AccentChoice
+import space.mai.mai_launcher.domain.Appearance
 import space.mai.mai_launcher.design.MaiText
 import space.mai.mai_launcher.design.MaiType
 import space.mai.mai_launcher.design.MainFrame
@@ -73,6 +78,7 @@ data class SettingsState(
     val feedCount: Int = 0,
     val version: String = "",
     val backup: BackupStatus? = null,
+    val appearance: Appearance = Appearance(),
 )
 
 class SettingsActions(
@@ -93,6 +99,10 @@ class SettingsActions(
     val onExport: () -> Unit = {},
     val onImport: () -> Unit = {},
     val onClose: () -> Unit = {},
+    val onAccent: (AccentChoice) -> Unit = {},
+    val onContrast: () -> Unit = {},
+    val onReduceMotion: () -> Unit = {},
+    val onLarge: () -> Unit = {},
 )
 
 /** Launcher-Einstellungen: Dock, Deck, Freigaben, System. Über die Seitenleiste erreichbar. */
@@ -124,6 +134,7 @@ fun SettingsScreen(state: SettingsState, actions: SettingsActions, modifier: Mod
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 DockPanel(state.dock, actions)
+                AppearancePanel(state.appearance, actions)
                 MaiPanel(stringResource(R.string.settings_deck), Modifier.fillMaxWidth()) {
                     SettingRow(stringResource(R.string.settings_arrange), stringResource(R.string.settings_arrange_body),
                         stringResource(R.string.settings_open), actions.onArrangeDeck)
@@ -220,6 +231,54 @@ private fun DockPanel(dock: List<DockSlot>, actions: SettingsActions) {
     }
 }
 
+/** Grundfarbe (fünf Sechsecke) und Komfort-Modi. */
+@Composable
+private fun AppearancePanel(a: Appearance, actions: SettingsActions) {
+    MaiPanel(
+        title = stringResource(R.string.settings_appearance),
+        meta = accentName(a.accent).uppercase(),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth()) {
+            AccentChoice.entries.forEach { c ->
+                val selected = c == a.accent
+                val name = accentName(c)
+                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    HexToken(
+                        contentDescription = if (selected) stringResource(R.string.settings_accent_selected, name) else name,
+                        size = 40.dp,
+                        text = if (selected) "●" else null,
+                        color = c.swatch,
+                        filled = selected,
+                        glow = if (selected) GlowLevel.Focus else GlowLevel.None,
+                        onClick = { actions.onAccent(c) },
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.height(4.dp))
+        MaiText(stringResource(R.string.settings_accent_body), MaiType.Body, color = MaiColors.Text3, maxLines = 2)
+        SettingRow(stringResource(R.string.settings_contrast), stringResource(R.string.settings_contrast_body),
+            onOff(a.highContrast), actions.onContrast)
+        SettingRow(stringResource(R.string.settings_motion), stringResource(R.string.settings_motion_body),
+            onOff(a.reduceMotion), actions.onReduceMotion)
+        SettingRow(stringResource(R.string.settings_large), stringResource(R.string.settings_large_body),
+            onOff(a.large), actions.onLarge)
+    }
+}
+
+@Composable
+private fun accentName(c: AccentChoice) = stringResource(
+    when (c) {
+        AccentChoice.Ion -> R.string.accent_ion
+        AccentChoice.Signal -> R.string.accent_signal
+        AccentChoice.Amber -> R.string.accent_amber
+        AccentChoice.Violet -> R.string.accent_violet
+        AccentChoice.White -> R.string.accent_white
+    },
+)
+
 /** Eine Zeile: Titel, optional Erklärung, rechts der Zustand. Ganze Zeile tippbar. */
 @Composable
 private fun SettingRow(title: String, body: String?, value: String, onClick: () -> Unit, on: Boolean? = null) {
@@ -231,7 +290,7 @@ private fun SettingRow(title: String, body: String?, value: String, onClick: () 
     Row(
         Modifier
             .fillMaxWidth()
-            .heightIn(min = 52.dp)
+            .heightIn(min = maxOf(52.dp, MaiDims.ListRow))
             .clickable(role = Role.Button) { feedback.tap(); onClick() }
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,

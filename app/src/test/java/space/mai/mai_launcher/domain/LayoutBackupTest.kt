@@ -14,6 +14,10 @@ class LayoutBackupTest {
         signalsShowText = true,
         haptics = HapticLevel.Strong,
         sounds = SoundLevel.Quiet,
+        accent = AccentChoice.Violet,
+        highContrast = true,
+        reduceMotion = false,
+        large = true,
     )
 
     @Test fun roundTrip() {
@@ -26,7 +30,7 @@ class LayoutBackupTest {
         val text = LayoutBackupCodec.encode(sample)
         // Nur bekannte Schlüssel – kein Startverlauf, kein Comms-Verlauf.
         val keys = text.lines().drop(1).filter { it.isNotBlank() }.map { it.substringBefore('=').substringBefore('.') }.toSet()
-        assertEquals(setOf("dock", "dest", "feed", "widget", "signals_show_text", "haptics", "sounds"), keys)
+        assertEquals(setOf("dock", "dest", "feed", "widget", "signals_show_text", "haptics", "sounds", "accent", "comfort_contrast", "comfort_motion", "comfort_large"), keys)
     }
 
     @Test fun readsTolerantly() {
@@ -72,5 +76,12 @@ class LayoutBackupTest {
         // Profil 10 gibt es hier nicht: Hauptprofil bevorzugt.
         assertEquals(AppKey("app.browser", "Main", 0), r[3])
         assertNull(LayoutBackupCodec.resolveDock(listOf(AppKey("gone", "X")), installed)[0])
+    }
+
+    @Test fun appearanceOnlyOverridesWhatIsSaved() {
+        val current = Appearance(AccentChoice.Amber, highContrast = false, reduceMotion = true, large = false)
+        val b = LayoutBackup(accent = AccentChoice.Ion, large = true)
+        assertEquals(Appearance(AccentChoice.Ion, highContrast = false, reduceMotion = true, large = true), b.appearanceOver(current))
+        assertEquals(current, LayoutBackup().appearanceOver(current))
     }
 }

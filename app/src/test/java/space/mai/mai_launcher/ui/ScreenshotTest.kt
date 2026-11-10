@@ -7,6 +7,10 @@ import androidx.compose.ui.test.onRoot
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
 import org.junit.Test
+import space.mai.mai_launcher.design.Comfort
+import space.mai.mai_launcher.design.ComfortState
+import space.mai.mai_launcher.design.toAccent
+import space.mai.mai_launcher.domain.AccentChoice
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
@@ -445,5 +449,33 @@ class ScreenshotTest {
             }
         }
         compose.onRoot().captureRoboImage("../project-docs/screenshots/16_deck_forecast.png")
+    }
+
+    @Test fun deckComfort() {
+        // Hoher Kontrast + große Ansicht, Grundfarbe Violett.
+        ComfortState.current = Comfort(highContrast = true, large = true)
+        try {
+            compose.setContent {
+                CompositionLocalProvider(LocalAccent provides AccentChoice.Violet.toAccent()) {
+                    MaiBackground {
+                        DeckScreen(
+                            DeckState(
+                                system = system,
+                                dock = listOf(tile("Phone"), tile("Messages"), tile("Camera"), tile("Browser")),
+                                likely = listOf(tile("Music"), tile("Calendar"), tile("Ruf durch"), tile("Notes")),
+                                likelyWindow = 20 to 22,
+                                appCount = apps.size,
+                                zone = zone,
+                                forecast = listOf(ForecastLine.Household(3, 0, "Water plants", "Paper", 1, 2)),
+                            ),
+                            DeckActions(),
+                        )
+                    }
+                }
+            }
+            compose.onRoot().captureRoboImage("../project-docs/screenshots/17_deck_comfort.png")
+        } finally {
+            ComfortState.current = Comfort()
+        }
     }
 }

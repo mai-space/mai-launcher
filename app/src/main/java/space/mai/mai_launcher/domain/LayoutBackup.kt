@@ -19,10 +19,23 @@ data class LayoutBackup(
     val signalsShowText: Boolean? = null,
     val haptics: HapticLevel? = null,
     val sounds: SoundLevel? = null,
+    val accent: AccentChoice? = null,
+    val highContrast: Boolean? = null,
+    val reduceMotion: Boolean? = null,
+    val large: Boolean? = null,
 ) {
     val isEmpty: Boolean
         get() = dock.all { it == null } && destinations.all { it.isBlank() } && feeds.isEmpty() &&
-            widgets.isEmpty() && signalsShowText == null && haptics == null && sounds == null
+            widgets.isEmpty() && signalsShowText == null && haptics == null && sounds == null &&
+            accent == null && highContrast == null && reduceMotion == null && large == null
+
+    /** Darstellung aus der Sicherung über die aktuelle legen (fehlende Werte bleiben). */
+    fun appearanceOver(current: Appearance): Appearance = current.copy(
+        accent = accent ?: current.accent,
+        highContrast = highContrast ?: current.highContrast,
+        reduceMotion = reduceMotion ?: current.reduceMotion,
+        large = large ?: current.large,
+    )
 }
 
 object LayoutBackupCodec {
@@ -38,6 +51,10 @@ object LayoutBackupCodec {
         b.signalsShowText?.let { line("signals_show_text", it.toString()) }
         b.haptics?.let { line("haptics", it.name.lowercase()) }
         b.sounds?.let { line("sounds", it.name.lowercase()) }
+        b.accent?.let { line("accent", it.name.lowercase()) }
+        b.highContrast?.let { line("comfort_contrast", it.toString()) }
+        b.reduceMotion?.let { line("comfort_motion", it.toString()) }
+        b.large?.let { line("comfort_large", it.toString()) }
     }
 
     private fun StringBuilder.line(key: String, value: String) {
@@ -57,6 +74,10 @@ object LayoutBackupCodec {
         var showText: Boolean? = null
         var haptics: HapticLevel? = null
         var sounds: SoundLevel? = null
+        var accent: AccentChoice? = null
+        var contrast: Boolean? = null
+        var motion: Boolean? = null
+        var large: Boolean? = null
         for (l in lines.drop(1)) {
             val eq = l.indexOf('=')
             if (eq <= 0) continue
@@ -74,9 +95,13 @@ object LayoutBackupCodec {
                 key == "signals_show_text" -> showText = value.toBooleanStrictOrNull()
                 key == "haptics" -> haptics = HapticLevel.entries.firstOrNull { it.name.equals(value, true) }
                 key == "sounds" -> sounds = SoundLevel.entries.firstOrNull { it.name.equals(value, true) }
+                key == "accent" -> accent = AccentChoice.entries.firstOrNull { it.name.equals(value, true) }
+                key == "comfort_contrast" -> contrast = value.toBooleanStrictOrNull()
+                key == "comfort_motion" -> motion = value.toBooleanStrictOrNull()
+                key == "comfort_large" -> large = value.toBooleanStrictOrNull()
             }
         }
-        return LayoutBackup(dock.toList(), listOf(home, work), feeds, widgets, showText, haptics, sounds)
+        return LayoutBackup(dock.toList(), listOf(home, work), feeds, widgets, showText, haptics, sounds, accent, contrast, motion, large)
     }
 
     private fun provider(raw: String): ProviderRef? {

@@ -226,4 +226,18 @@
         <item quantity="one">in %d Monat</item>
         <item quantity="other">in %d Monaten</item>
     </plurals>
+    <string name="settings_appearance">DARSTELLUNG</string>
+    <string name="settings_accent_body">Grundfarbe für Deck und Index. Comms und Media bleiben unterscheidbar.</string>
+    <string name="settings_accent_selected">%1$s, ausgewählt</string>
+    <string name="accent_ion">Ion</string>
+    <string name="accent_signal">Signal</string>
+    <string name="accent_amber">Bernstein</string>
+    <string name="accent_violet">Violett</string>
+    <string name="accent_white">Weiß</string>
+    <string name="settings_contrast">Hoher Kontrast</string>
+    <string name="settings_contrast_body">Kein Leuchten, dickere Linien, deckende Panels, hellerer Text</string>
+    <string name="settings_motion">Weniger Bewegung</string>
+    <string name="settings_motion_body">Kein Einzeichnen, sofortige Wechsel. Auch an, wenn Android-Animationen aus sind.</string>
+    <string name="settings_large">Große Ansicht</string>
+    <string name="settings_large_body">Größere Schrift, Sechsecke und Zeilen; weniger Panels auf dem Deck</string>
 </resources>
