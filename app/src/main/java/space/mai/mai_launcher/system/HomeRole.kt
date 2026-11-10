@@ -14,6 +14,12 @@ class HomeRole(private val context: Context) {
         if (roles.isRoleAvailable(RoleManager.ROLE_HOME)) roles.createRequestRoleIntent(RoleManager.ROLE_HOME) else null
     }.getOrNull()
 
+    /** Ist der Launcher der Standard-Assistent (Assistenten-Geste öffnet die Befehlszeile)? */
+    fun isAssistant(): Boolean = runCatching { roles.isRoleHeld(RoleManager.ROLE_ASSISTANT) }.getOrDefault(false)
+
+    /** Die Assistenten-Rolle lässt sich nicht per Dialog anfragen: Einstellungsseite „Digitaler Assistent“. */
+    fun assistantSettingsIntent(): Intent = Intent(android.provider.Settings.ACTION_VOICE_INPUT_SETTINGS)
+
     /** Rückfall: Einstellungsseite „Startbildschirm-App“. */
     fun settingsIntent(): Intent = Intent(android.provider.Settings.ACTION_HOME_SETTINGS)
 }

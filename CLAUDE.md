@@ -20,6 +20,11 @@ Systemsprache. Paket `space.mai.mai_launcher`, CI-Artefakt `mai-launcher.apk`.
   Verlauf (`comms_log`, `CommsLogCodec` Kopf `v1`) speichert nur Kontakt-Schlüssel,
   Anzahl und Zeit, keine Nummern oder Namen.
 - **Befehlszeile:** alles lokal; Websuche nur auf Tippen, nie per Enter.
+- **Notizen** (`note …`): verschlüsselt in `notes.bin` (SecureFile, Alias
+  `mai_launcher_notes_key`, `NotesCodec` Kopf `notes v1`) – Dateiname/Alias nie
+  ändern, Format nur erweitern. Nie in der Layout-Sicherung.
+- **Assistent:** nur `ACTION_ASSIST` öffnet die Befehlszeile; keine
+  VoiceInteraction, kein Mitlesen anderer Apps.
 - **Spracheingabe:** `RECORD_AUDIO` optional, erst beim Tippen aufs Mikrofon
   erfragt; Erkennung bevorzugt auf dem Gerät (`createOnDeviceSpeechRecognizer`),
   sonst Systemdialog. Kein Audio, kein Text wird gespeichert.

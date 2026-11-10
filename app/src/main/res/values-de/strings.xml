@@ -258,4 +258,19 @@
         <item quantity="one">Du hast %1$s in den letzten 4 Wochen %2$d-mal um %3$s–%4$s Uhr geöffnet.</item>
         <item quantity="other">Du hast %1$s in den letzten 4 Wochen %2$d-mal um %3$s–%4$s Uhr geöffnet.</item>
     </plurals>
+    <string name="cmd_tag_note">NOTIZ</string>
+    <string name="cmd_note_save">SPEICHERN</string>
+    <string name="panel_notes">NOTIZEN</string>
+    <plurals name="notes_count">
+        <item quantity="one">%d NOTIZ</item>
+        <item quantity="other">%d NOTIZEN</item>
+    </plurals>
+    <string name="notes_more">+ %d WEITERE</string>
+    <string name="notes_done">Als erledigt markieren</string>
+    <string name="undo">Rückgängig</string>
+    <string name="undo_widget">Widget entfernt</string>
+    <string name="undo_feed">Feed entfernt</string>
+    <string name="undo_note">Notiz erledigt</string>
+    <string name="settings_assistant">Assistenten-Geste</string>
+    <string name="settings_assistant_body">Mai Launcher als digitalen Assistenten wählen: Die Geste öffnet die Befehlszeile.</string>
 </resources>

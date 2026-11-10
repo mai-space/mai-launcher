@@ -111,12 +111,15 @@ fun LauncherApp(vm: LauncherViewModel) {
     val hiddenApps by vm.hiddenApps.collectAsStateWithLifecycle()
     val aliases by vm.aliases.collectAsStateWithLifecycle()
     val likelyReasons by vm.likelyReasons.collectAsStateWithLifecycle()
+    val notes by vm.notes.collectAsStateWithLifecycle()
+    val undo by vm.undo.collectAsStateWithLifecycle()
+    val pendingRemoval by vm.pendingWidgetRemoval.collectAsStateWithLifecycle()
     val areas = remember(appearance.accent) { AppearanceRules.areas(appearance.accent) }
     val comfort = ComfortState.current
 
     val artBitmap = remember(art) { art?.asImageBitmap() }
-    val widgets = remember(widgetIds) {
-        widgetIds.mapNotNull { id ->
+    val widgets = remember(widgetIds, pendingRemoval) {
+        widgetIds.filterNot { it in pendingRemoval }.mapNotNull { id ->
             val info = vm.widgets.info(id) ?: return@mapNotNull null
             val label = info.loadLabel(vm.getApplication<android.app.Application>().packageManager) ?: ""
             val dm = vm.getApplication<android.app.Application>().resources.displayMetrics
@@ -169,12 +172,14 @@ fun LauncherApp(vm: LauncherViewModel) {
             onCalendar = vm.calendar::openCalendar,
             onAddWidget = vm::openWidgetPicker,
             onMoveWidget = vm.widgets::move,
-            onRemoveWidget = vm.widgets::remove,
+            onRemoveWidget = vm::removeWidget,
             widgetContent = { slot -> HostedWidget(vm.widgets, slot) },
             onOpenLink = vm::openLink,
             onRefreshNews = { vm.feeds.refresh(force = true) },
             onAddFeed = vm.feeds::add,
-            onRemoveFeed = vm.feeds::remove,
+            onRemoveFeed = vm::removeFeed,
+            onNoteDone = vm::noteDone,
+            onUndo = vm::undoLast,
             onHideLikely = vm::hideFromLikely,
         )
     }
@@ -244,6 +249,7 @@ fun LauncherApp(vm: LauncherViewModel) {
             onNotifications = { vm.host?.openNotificationAccess() },
             onCalendar = vm::settingsCalendar,
             onContacts = vm::settingsContacts,
+            onAssistant = vm::settingsAssistant,
             onSystemSettings = vm.actions::systemSettings,
             onAppInfo = vm.actions::launcherInfo,
             onExport = vm::exportLayout,
@@ -315,6 +321,8 @@ fun LauncherApp(vm: LauncherViewModel) {
                             forecast = forecast,
                             forecastApps = forecastApps,
                             likelyReasons = likelyReasons,
+                            notes = notes,
+                            undo = undo,
                         ),
                         deckActions,
                     )
@@ -347,6 +355,7 @@ fun LauncherApp(vm: LauncherViewModel) {
                             signals = access.signals,
                             calendar = access.calendar,
                             contacts = access.contacts,
+                            assistant = access.assistant,
                             signalsShowText = signalsText,
                             forecast = forecastOn,
                             haptics = haptics,
