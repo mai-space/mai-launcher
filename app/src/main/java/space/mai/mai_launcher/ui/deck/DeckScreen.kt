@@ -66,6 +66,8 @@ import space.mai.mai_launcher.design.MicGlyph
 import space.mai.mai_launcher.system.SystemState
 import space.mai.mai_launcher.ui.AppTile
 import space.mai.mai_launcher.ui.AppToken
+import space.mai.mai_launcher.ui.LikelyTokens
+import space.mai.mai_launcher.domain.AppKey
 import space.mai.mai_launcher.domain.SignalDigest
 import space.mai.mai_launcher.domain.Forecast
 import space.mai.mai_launcher.domain.ForecastLine
@@ -108,6 +110,8 @@ data class DeckState(
     /** Prognose aus den Mai-Apps (leer = Panel aus). */
     val forecast: List<ForecastLine> = emptyList(),
     val forecastApps: Map<String, AppTile> = emptyMap(),
+    /** Starts um diese Tageszeit je Vorschlag (für die Erklärung). */
+    val likelyReasons: Map<AppKey, Int> = emptyMap(),
 )
 
 /** Aktionen des Decks. */
@@ -141,6 +145,7 @@ class DeckActions(
     val onRefreshNews: () -> Unit = {},
     val onAddFeed: (String) -> Boolean = { false },
     val onRemoveFeed: (String) -> Unit = {},
+    val onHideLikely: (AppKey) -> Unit = {},
 )
 
 class MediaActions(
@@ -226,7 +231,7 @@ fun DeckScreen(state: DeckState, actions: DeckActions, modifier: Modifier = Modi
                         DestinationsPanel(state.destinations, state.editMode, actions.onDestination, actions.onSetDestination)
                     }
                 }
-                PowerOnFade(order++) { LikelyPanel(state, actions.onApp) }
+                PowerOnFade(order++) { LikelyPanel(state, actions.onApp, actions.onHideLikely) }
                 if (state.editMode || state.news.urls.isNotEmpty()) {
                     val n = state.news
                     PowerOnFade(order++) {
@@ -299,7 +304,7 @@ private fun ClockBlock(state: DeckState, onClock: () -> Unit, onLongClock: () ->
 }
 
 @Composable
-private fun LikelyPanel(state: DeckState, onApp: (AppTile) -> Unit) {
+private fun LikelyPanel(state: DeckState, onApp: (AppTile) -> Unit, onHideLikely: (AppKey) -> Unit) {
     val (from, to) = state.likelyWindow
     MaiPanel(
         title = stringResource(R.string.panel_likely_now),
@@ -310,9 +315,8 @@ private fun LikelyPanel(state: DeckState, onApp: (AppTile) -> Unit) {
         if (state.likely.isEmpty()) {
             MaiText(stringResource(R.string.panel_likely_learning), MaiType.Body, maxLines = 2)
         } else {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                state.likely.take(4).forEach { AppToken(it, Modifier.weight(1f), size = if (ComfortState.current.large) 48.dp else 42.dp) { onApp(it) } }
-            }
+            LikelyTokens(state.likely, state.likelyReasons, state.likelyWindow,
+                if (ComfortState.current.large) 48.dp else 42.dp, onApp, onHideLikely)
         }
     }
 }

@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import space.mai.mai_launcher.domain.AccentChoice
+import space.mai.mai_launcher.domain.AliasCodec
 import space.mai.mai_launcher.domain.AppKey
 import space.mai.mai_launcher.domain.Appearance
 import space.mai.mai_launcher.domain.HapticLevel
@@ -116,6 +117,47 @@ class LauncherPrefs(context: Context) {
             putBoolean("comfort_large", a.large)
         }
         _appearance.value = a
+    }
+
+    private fun readKeys(name: String): Set<AppKey> =
+        prefs.getStringSet(name, emptySet()).orEmpty().mapNotNullTo(HashSet()) { AppKey.decode(it) }
+
+    private fun writeKeys(name: String, keys: Set<AppKey>) {
+        prefs.edit { putStringSet(name, keys.mapTo(HashSet()) { it.encode() }) }
+    }
+
+    private val _hidden = MutableStateFlow(readKeys("hidden_apps"))
+    /** Ausgeblendete Apps (nur im Reiter „Ausgeblendet“ sichtbar). */
+    val hiddenApps: StateFlow<Set<AppKey>> = _hidden.asStateFlow()
+
+    fun setHidden(key: AppKey, hidden: Boolean) = setHiddenApps(if (hidden) _hidden.value + key else _hidden.value - key)
+
+    fun setHiddenApps(keys: Set<AppKey>) {
+        writeKeys("hidden_apps", keys)
+        _hidden.value = keys
+    }
+
+    private val _likelyHidden = MutableStateFlow(readKeys("likely_hidden"))
+    /** Apps, die nie unter „Wahrscheinlich jetzt“ erscheinen sollen. */
+    val likelyHidden: StateFlow<Set<AppKey>> = _likelyHidden.asStateFlow()
+
+    fun setLikelyHidden(keys: Set<AppKey>) {
+        writeKeys("likely_hidden", keys)
+        _likelyHidden.value = keys
+    }
+
+    private val _aliases = MutableStateFlow(AliasCodec.decode(prefs.getStringSet("aliases", emptySet()).orEmpty()))
+    /** Eigene Suchnamen je App. */
+    val aliases: StateFlow<Map<AppKey, String>> = _aliases.asStateFlow()
+
+    fun setAlias(key: AppKey, alias: String?) {
+        val clean = alias?.let(AliasCodec::clean)
+        setAliases(if (clean == null) _aliases.value - key else _aliases.value + (key to clean))
+    }
+
+    fun setAliases(map: Map<AppKey, String>) {
+        prefs.edit { putStringSet("aliases", AliasCodec.encode(map)) }
+        _aliases.value = AliasCodec.decode(AliasCodec.encode(map))
     }
 
     companion object {

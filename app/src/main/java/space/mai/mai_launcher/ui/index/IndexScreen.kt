@@ -74,6 +74,15 @@ import space.mai.mai_launcher.design.MainFrame
 import space.mai.mai_launcher.design.MicGlyph
 import space.mai.mai_launcher.design.glowBorder
 import space.mai.mai_launcher.domain.AlphaIndex
+import space.mai.mai_launcher.domain.AliasCodec
+import space.mai.mai_launcher.domain.AppShortcut
+import space.mai.mai_launcher.domain.IndexTab
+import space.mai.mai_launcher.ui.LikelyTokens
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.semantics.selected
 import space.mai.mai_launcher.domain.AppInfo
 import space.mai.mai_launcher.domain.AppKey
 import space.mai.mai_launcher.domain.Command
@@ -97,6 +106,14 @@ data class IndexState(
     val contacts: List<Contact> = emptyList(),
     /** Spracheingabe hört gerade zu. */
     val listening: Boolean = false,
+    val tab: IndexTab = IndexTab.All,
+    /** Verfügbare Reiter; nur „Alle“ = keine Reiterleiste. */
+    val tabs: List<IndexTab> = listOf(IndexTab.All),
+    val hidden: Set<AppKey> = emptySet(),
+    val aliases: Map<AppKey, String> = emptyMap(),
+    val likelyReasons: Map<AppKey, Int> = emptyMap(),
+    /** Aktuelles Dock (für „Ins Dock“). */
+    val dock: List<AppTile?> = emptyList(),
 )
 
 class IndexActions(
@@ -110,6 +127,13 @@ class IndexActions(
     val onCall: (Contact) -> Unit = {},
     val onText: (Contact) -> Unit = {},
     val onMic: () -> Unit = {},
+    val onTab: (IndexTab) -> Unit = {},
+    val loadShortcuts: suspend (AppKey) -> List<AppShortcut> = { emptyList() },
+    val onShortcut: (AppShortcut) -> Unit = {},
+    val onPinDock: (AppKey, Int) -> Unit = { _, _ -> },
+    val onHide: (AppKey, Boolean) -> Unit = { _, _ -> },
+    val onAlias: (AppKey, String) -> Unit = { _, _ -> },
+    val onHideLikely: (AppKey) -> Unit = {},
 )
 
 /** Eine Zeile der Liste: Buchstaben-Kopf oder App. */
@@ -183,7 +207,7 @@ fun IndexScreen(
                         CommandRow(cmd, highlighted = cmd == explicit.first(), onRun = actions.onCommand)
                     }
                     items(state.results, key = { it.key.encode() }) { tile ->
-                        AppRow(tile, highlighted = !commandFirst && tile == state.results.first(), actions)
+                        AppRow(tile, highlighted = !commandFirst && tile == state.results.first(), state, actions)
                     }
                     items(state.contacts, key = { "k_" + it.lookupKey }) { c ->
                         ContactRow(
@@ -197,13 +221,19 @@ fun IndexScreen(
                         CommandRow(cmd, highlighted = false, onRun = actions.onCommand)
                     }
                 } else {
-                    if (state.likely.isNotEmpty()) {
+                    if (state.tabs.size > 1) {
+                        item(key = "tabs") { TabRow(state, actions.onTab) }
+                    }
+                    if (state.likely.isNotEmpty() && state.tab == IndexTab.All) {
                         item(key = "likely") { LikelyRow(state, actions) }
+                    }
+                    if (rows.isEmpty()) {
+                        item(key = "empty") { MaiText(stringResource(R.string.index_tab_empty), MaiType.Body, Modifier.padding(top = 24.dp)) }
                     }
                     items(rows, key = { it.id }) { row ->
                         when (row) {
                             is ListRow.Header -> LetterHeader(row.letter)
-                            is ListRow.App -> AppRow(row.tile, highlighted = false, actions)
+                            is ListRow.App -> AppRow(row.tile, highlighted = false, state, actions)
                         }
                     }
                 }
@@ -216,7 +246,8 @@ fun IndexScreen(
             letters = sections.map { it.letter },
             enabled = !searching,
             onLetter = { letter ->
-                val offset = if (state.likely.isNotEmpty()) 1 else 0
+                val offset = (if (state.likely.isNotEmpty() && state.tab == IndexTab.All) 1 else 0) +
+                    (if (state.tabs.size > 1) 1 else 0)
                 letterPos[letter]?.let { it + offset }
             },
             listState = listState,
@@ -234,9 +265,7 @@ private fun LikelyRow(state: IndexState, actions: IndexActions) {
                 stringResource(R.string.panel_likely_window, "%02d".format(from), "%02d".format(to)),
         )
         Spacer(Modifier.height(8.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            state.likely.take(4).forEach { AppToken(it, Modifier.weight(1f), size = 42.dp) { actions.onApp(it) } }
-        }
+        LikelyTokens(state.likely, state.likelyReasons, state.likelyWindow, 42.dp, actions.onApp, actions.onHideLikely)
         Spacer(Modifier.height(10.dp))
         Box(Modifier.fillMaxWidth().height(1.dp).background(MaiColors.Line))
     }
@@ -251,13 +280,40 @@ private fun LetterHeader(letter: Char) {
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+/** Reiter: ALLE · ARBEIT · AUSGEBLENDET. */
 @Composable
-private fun AppRow(tile: AppTile, highlighted: Boolean, actions: IndexActions) {
+private fun TabRow(state: IndexState, onTab: (IndexTab) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        state.tabs.forEach { t ->
+            val on = t == state.tab
+            ActionChip(
+                stringResource(
+                    when (t) {
+                        IndexTab.All -> R.string.index_tab_all
+                        IndexTab.Work -> R.string.index_tab_work
+                        IndexTab.Hidden -> R.string.index_tab_hidden
+                    },
+                ),
+                color = if (on) LocalAccent.current.main else MaiColors.Text3,
+                selected = on,
+            ) { onTab(t) }
+        }
+    }
+}
+
+/** Was das Langdruck-Menü gerade zeigt. */
+private enum class RowMenu { Closed, Main, Dock, Alias }
+
+@OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
+@Composable
+private fun AppRow(tile: AppTile, highlighted: Boolean, state: IndexState, actions: IndexActions) {
     val accent = LocalAccent.current.main
     val feedback = LocalFeedback.current
-    var expanded by remember(tile.key) { mutableStateOf(false) }
+    var menu by remember(tile.key) { mutableStateOf(RowMenu.Closed) }
+    val expanded = menu != RowMenu.Closed && !state.pickingDock
     val shape = ChamferShape(6.dp)
+    val hidden = tile.key in state.hidden
+    val alias = state.aliases[tile.key]
     Column(
         Modifier
             .fillMaxWidth()
@@ -276,30 +332,116 @@ private fun AppRow(tile: AppTile, highlighted: Boolean, actions: IndexActions) {
                 .combinedClickable(
                     role = Role.Button,
                     onClick = { feedback.tap(); actions.onApp(tile) },
+                    onLongClickLabel = stringResource(R.string.action_menu),
                     onLongClick = {
                         feedback.longPress()
-                        expanded = !expanded
+                        menu = if (menu == RowMenu.Closed) RowMenu.Main else RowMenu.Closed
                     },
                 )
-                .semantics(mergeDescendants = true) { contentDescription = tile.label }
+                .semantics(mergeDescendants = true) {
+                    contentDescription = listOfNotNull(tile.label, alias).joinToString(", ")
+                }
                 .padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             AppGlyph(tile, active = highlighted || expanded)
             Spacer(Modifier.width(12.dp))
-            MaiText(tile.label.uppercase(), MaiType.ListCaps, Modifier.weight(1f))
+            MaiText(tile.label.uppercase(), MaiType.ListCaps, Modifier.weight(1f, fill = false))
+            if (alias != null) {
+                Spacer(Modifier.width(8.dp))
+                MaiLabel("· " + alias, color = MaiColors.Text3)
+            }
+            Spacer(Modifier.weight(1f))
             if (tile.isWork) MaiLabel(stringResource(R.string.work_badge), color = MaiColors.Amber)
             if (highlighted) MaiLabel("↵", color = accent)
         }
         if (expanded) {
-            Row(
-                Modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp, bottom = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                ActionChip(stringResource(R.string.action_app_info)) { expanded = false; actions.onAppInfo(tile.key) }
-                ActionChip(stringResource(R.string.action_uninstall), MaiColors.Alert) { expanded = false; actions.onUninstall(tile.key) }
+            val close = { menu = RowMenu.Closed }
+            when (menu) {
+                RowMenu.Main -> {
+                    val shortcuts by produceState(emptyList<AppShortcut>(), tile.key) { value = actions.loadShortcuts(tile.key) }
+                    shortcuts.forEach { sc ->
+                        ShortcutRow(sc.label) { close(); actions.onShortcut(sc) }
+                    }
+                    FlowRow(
+                        Modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp, top = 4.dp, bottom = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        if (!hidden) ActionChip(stringResource(R.string.action_pin_dock)) { menu = RowMenu.Dock }
+                        ActionChip(stringResource(R.string.action_alias)) { menu = RowMenu.Alias }
+                        ActionChip(stringResource(if (hidden) R.string.action_unhide else R.string.action_hide), MaiColors.Amber) {
+                            close(); actions.onHide(tile.key, !hidden)
+                        }
+                        ActionChip(stringResource(R.string.action_app_info)) { close(); actions.onAppInfo(tile.key) }
+                        ActionChip(stringResource(R.string.action_uninstall), MaiColors.Alert) { close(); actions.onUninstall(tile.key) }
+                    }
+                }
+                RowMenu.Dock -> {
+                    MaiLabel(stringResource(R.string.action_pin_dock_hint), Modifier.padding(start = 10.dp, top = 2.dp))
+                    Row(
+                        Modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp, top = 6.dp, bottom = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        repeat(4) { i ->
+                            val current = state.dock.getOrNull(i)
+                            val label = "${i + 1} · " + (current?.monogram ?: "+")
+                            ActionChip(label, selected = current?.key == tile.key) {
+                                close(); actions.onPinDock(tile.key, i)
+                            }
+                        }
+                    }
+                }
+                RowMenu.Alias -> AliasEditor(alias.orEmpty(), onDone = { close(); actions.onAlias(tile.key, it) })
+                RowMenu.Closed -> Unit
             }
         }
+    }
+}
+
+/** Eine App-Verknüpfung im Menü (ganze Zeile tippbar). */
+@Composable
+private fun ShortcutRow(label: String, onClick: () -> Unit) {
+    val feedback = LocalFeedback.current
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = MaiDims.MinTouch)
+            .combinedClickable(role = Role.Button) { feedback.tap(); onClick() }
+            .padding(horizontal = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        MaiText("›", MaiType.Mono, color = LocalAccent.current.main)
+        Spacer(Modifier.width(12.dp))
+        MaiText(label, MaiType.Body, color = MaiColors.Text)
+    }
+}
+
+/** Eigener Suchname: Eingabe, Enter oder OK speichert, leer entfernt. */
+@Composable
+private fun AliasEditor(initial: String, onDone: (String) -> Unit) {
+    var text by remember { mutableStateOf(initial) }
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focus.requestFocus() }
+    Row(
+        Modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp, top = 2.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.weight(1f).height(40.dp).background(MaiColors.Panel, ChamferShape(6.dp)).glowBorder(ChamferShape(6.dp), MaiColors.Line).padding(horizontal = 10.dp), contentAlignment = Alignment.CenterStart) {
+            if (text.isEmpty()) MaiLabel(stringResource(R.string.alias_hint), color = MaiColors.Text3)
+            BasicTextField(
+                value = text,
+                onValueChange = { text = it.take(AliasCodec.MAX_LENGTH) },
+                singleLine = true,
+                textStyle = MaiType.Mono.copy(color = MaiColors.Text),
+                cursorBrush = SolidColor(LocalAccent.current.main),
+                keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { onDone(text) }),
+                modifier = Modifier.fillMaxWidth().focusRequester(focus),
+            )
+        }
+        Spacer(Modifier.width(8.dp))
+        ActionChip(stringResource(R.string.likely_ok)) { onDone(text) }
     }
 }
 
@@ -325,14 +467,21 @@ private fun AppGlyph(tile: AppTile, active: Boolean) {
 }
 
 @Composable
-private fun ActionChip(text: String, color: androidx.compose.ui.graphics.Color = LocalAccent.current.main, onClick: () -> Unit) {
+private fun ActionChip(
+    text: String,
+    color: androidx.compose.ui.graphics.Color = LocalAccent.current.main,
+    selected: Boolean = false,
+    onClick: () -> Unit,
+) {
     val shape = ChamferShape(6.dp)
+    val feedback = LocalFeedback.current
     Box(
         Modifier
-            .height(36.dp)
-            .background(MaiColors.Panel, shape)
-            .glowBorder(shape, color)
-            .combinedClickable(role = Role.Button, onClick = onClick)
+            .heightIn(min = 40.dp)
+            .semantics { this.selected = selected }
+            .background(if (selected) MaiColors.Panel2 else MaiColors.Panel, shape)
+            .glowBorder(shape, color, if (selected) 1.4.dp else 1.dp)
+            .combinedClickable(role = Role.Button) { feedback.tap(); onClick() }
             .padding(horizontal = 14.dp),
         contentAlignment = Alignment.Center,
     ) {

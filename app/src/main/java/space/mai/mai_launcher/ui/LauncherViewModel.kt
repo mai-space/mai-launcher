@@ -38,6 +38,8 @@ import space.mai.mai_launcher.domain.MaiSummaryApps
 import space.mai.mai_launcher.summary.MaiSummaries
 import space.mai.mai_launcher.summary.MaiSummaryReader
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import space.mai.mai_launcher.domain.LayoutBackupCodec
 import space.mai.mai_launcher.ui.settings.BackupStatus
 import android.os.SystemClock
@@ -46,6 +48,9 @@ import space.mai.mai_launcher.design.Comfort
 import space.mai.mai_launcher.design.ComfortState
 import space.mai.mai_launcher.domain.Appearance
 import space.mai.mai_launcher.domain.AccentChoice
+import space.mai.mai_launcher.domain.AppCatalog
+import space.mai.mai_launcher.domain.AppShortcut
+import space.mai.mai_launcher.domain.IndexTab
 import space.mai.mai_launcher.domain.AppearanceRules
 import space.mai.mai_launcher.ui.settings.DockSlot
 import space.mai.mai_launcher.data.LauncherPrefs
@@ -222,17 +227,60 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, List(LauncherPrefs.DOCK_SLOTS) { null })
 
-    val likely: StateFlow<List<AppTile>> = combine(apps, log.events, dock, system.state) { list, events, dockTiles, sys ->
+    /** Ausgeblendete Apps und Apps, die nie vorgeschlagen werden sollen. */
+    val hiddenApps = prefs.hiddenApps
+    val aliases = prefs.aliases
+    private val notSuggested = combine(prefs.hiddenApps, prefs.likelyHidden) { a, b -> a + b }
+
+    val likely: StateFlow<List<AppTile>> = combine(apps, log.events, dock, system.state, notSuggested) { list, events, dockTiles, sys, never ->
         val byKey = list.associateBy { it.key }
-        val exclude = dockTiles.mapNotNull { it?.key }.toSet()
+        val exclude = dockTiles.mapNotNull { it?.key }.toSet() + never
         predictor.predict(events, sys.nowMillis, byKey.keys, exclude).mapNotNull { byKey[it]?.toTile() }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
+    /** Begründung je Vorschlag: Starts um diese Tageszeit in den letzten 4 Wochen. */
+    val likelyReasons: StateFlow<Map<AppKey, Int>> = combine(likely, log.events) { tiles, events ->
+        val now = System.currentTimeMillis()
+        tiles.associate { it.key to predictor.reason(events, it.key, now) }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+
     val likelyWindow: Pair<Int, Int> get() = predictor.window(System.currentTimeMillis())
 
-    val results: StateFlow<List<AppTile>> = combine(apps, query, log.events) { list, q, events ->
-        AppSearch.filter(list, q, launchCounts(events)).map { it.toTile() }
+    val results: StateFlow<List<AppTile>> = combine(apps, query, log.events, prefs.hiddenApps, prefs.aliases) { list, q, events, hidden, alias ->
+        AppSearch.filter(AppCatalog.searchable(list, hidden), q, launchCounts(events), alias).map { it.toTile() }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    // --- Index: Reiter, Langdruck-Menü ---
+
+    private val _indexTab = MutableStateFlow(IndexTab.All)
+    val indexTab: StateFlow<IndexTab> = _indexTab.asStateFlow()
+
+    val indexTabs: StateFlow<List<IndexTab>> = combine(apps, prefs.hiddenApps) { list, hidden -> AppCatalog.tabs(list, hidden) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, listOf(IndexTab.All))
+
+    /** Apps des aktuellen Reiters (fällt auf „Alle“ zurück, wenn der Reiter leer wird). */
+    val indexApps: StateFlow<List<AppInfo>> = combine(apps, prefs.hiddenApps, _indexTab, indexTabs) { list, hidden, tab, tabs ->
+        AppCatalog.inTab(list, hidden, if (tab in tabs) tab else IndexTab.All)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    fun selectIndexTab(tab: IndexTab) { _indexTab.value = tab }
+
+    suspend fun shortcuts(key: AppKey): List<AppShortcut> = withContext(Dispatchers.IO) { repo.shortcuts(key) }
+
+    fun startShortcut(shortcut: AppShortcut) {
+        if (repo.startShortcut(shortcut)) closeIndex()
+    }
+
+    fun pinToDock(key: AppKey, slot: Int) {
+        prefs.setDockSlot(slot, key)
+        feedback.tick()
+    }
+
+    fun setHidden(key: AppKey, hidden: Boolean) = prefs.setHidden(key, hidden)
+
+    fun setAlias(key: AppKey, alias: String) = prefs.setAlias(key, alias)
+
+    fun hideFromLikely(key: AppKey) = prefs.setLikelyHidden(prefs.likelyHidden.value + key)
 
     // --- Befehlszeile ---
 
@@ -387,6 +435,9 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             highContrast = prefs.appearance.value.highContrast,
             reduceMotion = prefs.appearance.value.reduceMotion,
             large = prefs.appearance.value.large,
+            hidden = prefs.hiddenApps.value,
+            likelyHidden = prefs.likelyHidden.value,
+            aliases = prefs.aliases.value,
         )
         host?.exportLayout(LayoutBackupCodec.fileName(java.time.LocalDate.now()), LayoutBackupCodec.encode(backup))
     }
@@ -409,6 +460,17 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         b.haptics?.let(prefs::setHaptics)
         b.sounds?.let(prefs::setSounds)
         prefs.setAppearance(b.appearanceOver(prefs.appearance.value))
+        val installedApps = apps.value
+        if (b.hidden.isNotEmpty()) {
+            prefs.setHiddenApps(prefs.hiddenApps.value + LayoutBackupCodec.resolveKeys(b.hidden, installedApps).values)
+        }
+        if (b.likelyHidden.isNotEmpty()) {
+            prefs.setLikelyHidden(prefs.likelyHidden.value + LayoutBackupCodec.resolveKeys(b.likelyHidden, installedApps).values)
+        }
+        if (b.aliases.isNotEmpty()) {
+            val mapped = LayoutBackupCodec.resolveKeys(b.aliases.keys, installedApps)
+            prefs.setAliases(prefs.aliases.value + b.aliases.mapNotNull { (k, a) -> mapped[k]?.let { it to a } })
+        }
         // Nur installierte Widgets, die noch nicht auf dem Deck sind.
         val installed = widgets.installedRefs().toSet()
         val placed = widgets.ids.value.mapNotNull { id ->
@@ -571,6 +633,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         pickReturn = Screen.Deck
         _query.value = ""
         _pickingSlot.value = null
+        _indexTab.value = IndexTab.All
     }
 
     fun setQuery(q: String) { _query.value = q }

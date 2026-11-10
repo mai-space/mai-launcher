@@ -23,11 +23,15 @@ data class LayoutBackup(
     val highContrast: Boolean? = null,
     val reduceMotion: Boolean? = null,
     val large: Boolean? = null,
+    val hidden: Set<AppKey> = emptySet(),
+    val likelyHidden: Set<AppKey> = emptySet(),
+    val aliases: Map<AppKey, String> = emptyMap(),
 ) {
     val isEmpty: Boolean
         get() = dock.all { it == null } && destinations.all { it.isBlank() } && feeds.isEmpty() &&
             widgets.isEmpty() && signalsShowText == null && haptics == null && sounds == null &&
-            accent == null && highContrast == null && reduceMotion == null && large == null
+            accent == null && highContrast == null && reduceMotion == null && large == null &&
+            hidden.isEmpty() && likelyHidden.isEmpty() && aliases.isEmpty()
 
     /** Darstellung aus der Sicherung über die aktuelle legen (fehlende Werte bleiben). */
     fun appearanceOver(current: Appearance): Appearance = current.copy(
@@ -55,6 +59,9 @@ object LayoutBackupCodec {
         b.highContrast?.let { line("comfort_contrast", it.toString()) }
         b.reduceMotion?.let { line("comfort_motion", it.toString()) }
         b.large?.let { line("comfort_large", it.toString()) }
+        b.hidden.map { it.encode() }.sorted().forEach { line("hidden", it) }
+        b.likelyHidden.map { it.encode() }.sorted().forEach { line("likely_hidden", it) }
+        AliasCodec.encode(b.aliases).sorted().forEach { line("alias", it) }
     }
 
     private fun StringBuilder.line(key: String, value: String) {
@@ -78,6 +85,9 @@ object LayoutBackupCodec {
         var contrast: Boolean? = null
         var motion: Boolean? = null
         var large: Boolean? = null
+        val hidden = HashSet<AppKey>()
+        val likelyHidden = HashSet<AppKey>()
+        val aliasLines = mutableListOf<String>()
         for (l in lines.drop(1)) {
             val eq = l.indexOf('=')
             if (eq <= 0) continue
@@ -99,9 +109,13 @@ object LayoutBackupCodec {
                 key == "comfort_contrast" -> contrast = value.toBooleanStrictOrNull()
                 key == "comfort_motion" -> motion = value.toBooleanStrictOrNull()
                 key == "comfort_large" -> large = value.toBooleanStrictOrNull()
+                key == "hidden" -> AppKey.decode(value)?.let(hidden::add)
+                key == "likely_hidden" -> AppKey.decode(value)?.let(likelyHidden::add)
+                key == "alias" -> aliasLines += value
             }
         }
-        return LayoutBackup(dock.toList(), listOf(home, work), feeds, widgets, showText, haptics, sounds, accent, contrast, motion, large)
+        return LayoutBackup(dock.toList(), listOf(home, work), feeds, widgets, showText, haptics, sounds, accent, contrast, motion, large,
+            hidden, likelyHidden, AliasCodec.decode(aliasLines))
     }
 
     private fun provider(raw: String): ProviderRef? {
@@ -122,6 +136,14 @@ object LayoutBackupCodec {
             ?: main.firstOrNull { it.key.packageName == k.packageName && it.key.className == k.className }?.key
             ?: main.firstOrNull { it.key.packageName == k.packageName }?.key
     }
+
+    /**
+     * App-Schlüssel (ausgeblendet, Aliase) auf installierte Apps abbilden –
+     * wie beim Dock über Paket und Activity, weil die Profil-Nummer
+     * gerätespezifisch ist. Fehlende Apps entfallen.
+     */
+    fun resolveKeys(saved: Collection<AppKey>, installed: List<AppInfo>): Map<AppKey, AppKey> =
+        saved.mapNotNull { k -> resolveDock(listOf(k), installed).firstOrNull()?.let { k to it } }.toMap()
 
     /** Dateiname mit Datum, z. B. „mai-launcher-layout-2026-11-09.txt“. */
     fun fileName(date: java.time.LocalDate): String = "mai-launcher-layout-$date.txt"

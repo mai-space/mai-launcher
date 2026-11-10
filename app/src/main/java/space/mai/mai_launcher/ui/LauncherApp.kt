@@ -105,6 +105,12 @@ fun LauncherApp(vm: LauncherViewModel) {
     val forecastOn by vm.forecastOn.collectAsStateWithLifecycle()
     val use24h = systemUses24h()
     val appearance by vm.appearance.collectAsStateWithLifecycle()
+    val indexApps by vm.indexApps.collectAsStateWithLifecycle()
+    val indexTab by vm.indexTab.collectAsStateWithLifecycle()
+    val indexTabs by vm.indexTabs.collectAsStateWithLifecycle()
+    val hiddenApps by vm.hiddenApps.collectAsStateWithLifecycle()
+    val aliases by vm.aliases.collectAsStateWithLifecycle()
+    val likelyReasons by vm.likelyReasons.collectAsStateWithLifecycle()
     val areas = remember(appearance.accent) { AppearanceRules.areas(appearance.accent) }
     val comfort = ComfortState.current
 
@@ -169,6 +175,7 @@ fun LauncherApp(vm: LauncherViewModel) {
             onRefreshNews = { vm.feeds.refresh(force = true) },
             onAddFeed = vm.feeds::add,
             onRemoveFeed = vm.feeds::remove,
+            onHideLikely = vm::hideFromLikely,
         )
     }
     val indexActions = remember(vm) {
@@ -183,6 +190,13 @@ fun LauncherApp(vm: LauncherViewModel) {
             onMic = vm::startVoice,
             onCall = { vm.call(it); vm.closeIndex() },
             onText = { vm.text(it); vm.closeIndex() },
+            onTab = vm::selectIndexTab,
+            loadShortcuts = vm::shortcuts,
+            onShortcut = vm::startShortcut,
+            onPinDock = vm::pinToDock,
+            onHide = vm::setHidden,
+            onAlias = vm::setAlias,
+            onHideLikely = vm::hideFromLikely,
         )
     }
     val mediaActions = remember(vm) {
@@ -300,12 +314,13 @@ fun LauncherApp(vm: LauncherViewModel) {
                             badges = badges,
                             forecast = forecast,
                             forecastApps = forecastApps,
+                            likelyReasons = likelyReasons,
                         ),
                         deckActions,
                     )
                     Screen.Index -> IndexScreen(
                         IndexState(
-                            apps = apps,
+                            apps = indexApps,
                             results = results,
                             query = query,
                             likely = likely,
@@ -314,6 +329,12 @@ fun LauncherApp(vm: LauncherViewModel) {
                             commands = if (picking != null) emptyList() else commands,
                             contacts = if (picking != null) emptyList() else contactHits,
                             listening = listening,
+                            tab = indexTab,
+                            tabs = indexTabs,
+                            hidden = hiddenApps,
+                            aliases = aliases,
+                            likelyReasons = likelyReasons,
+                            dock = dock,
                         ),
                         indexActions,
                         focusSignal = focus,

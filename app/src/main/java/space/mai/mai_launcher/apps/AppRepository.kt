@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import space.mai.mai_launcher.domain.AppInfo
 import space.mai.mai_launcher.domain.AppKey
+import space.mai.mai_launcher.domain.AppShortcut
 
 /**
  * Katalog aller startbaren Apps über [LauncherApps] – inkl. Arbeitsprofil.
@@ -80,6 +81,33 @@ class AppRepository(private val context: Context) {
         true
     }.getOrDefault(false)
 
+    /**
+     * App-Verknüpfungen (aus dem Manifest und dynamische). Android gibt sie nur
+     * dem Standard-Launcher heraus; sonst leer.
+     */
+    fun shortcuts(key: AppKey): List<AppShortcut> = runCatching {
+        if (!launcherApps.hasShortcutHostPermission()) return emptyList()
+        val user = userFor(key) ?: return emptyList()
+        val query = LauncherApps.ShortcutQuery()
+            .setPackage(key.packageName)
+            .setActivity(ComponentName(key.packageName, key.className))
+            .setQueryFlags(LauncherApps.ShortcutQuery.FLAG_MATCH_MANIFEST or LauncherApps.ShortcutQuery.FLAG_MATCH_DYNAMIC)
+        launcherApps.getShortcuts(query, user).orEmpty()
+            .filter { it.isEnabled }
+            .sortedWith(compareBy({ !it.isDeclaredInManifest }, { it.rank }))
+            .take(MAX_SHORTCUTS)
+            .mapNotNull { s ->
+                val label = (s.shortLabel ?: s.longLabel)?.toString()?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                AppShortcut(s.id, s.`package`, label, key.profile)
+            }
+    }.getOrDefault(emptyList())
+
+    fun startShortcut(shortcut: AppShortcut): Boolean = runCatching {
+        val user = userManager.getUserForSerialNumber(shortcut.profile) ?: return false
+        launcherApps.startShortcut(shortcut.packageName, shortcut.id, null, null, user)
+        true
+    }.getOrDefault(false)
+
     fun openAppInfo(key: AppKey) {
         val user = userFor(key) ?: return
         runCatching {
@@ -94,6 +122,10 @@ class AppRepository(private val context: Context) {
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
             )
         }
+    }
+
+    private companion object {
+        const val MAX_SHORTCUTS = 4
     }
 
     /** Pakete von Musik-/Podcast-Apps (Kategorie Musik oder Media-Browser-Dienst). */

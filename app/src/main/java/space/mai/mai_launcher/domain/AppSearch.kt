@@ -29,14 +29,21 @@ object AppSearch {
         return 0
     }
 
+    /** Eigener Suchname schlägt den App-Namen knapp (z. B. „bank“ → Sparkasse). */
+    private const val ALIAS_BONUS = 5
+
     fun filter(
         apps: List<AppInfo>,
         query: String,
         launchCounts: Map<AppKey, Int> = emptyMap(),
+        aliases: Map<AppKey, String> = emptyMap(),
     ): List<AppInfo> {
         if (query.isBlank()) return apps
         return apps
-            .map { it to score(it.label, query) }
+            .map { app ->
+                val alias = aliases[app.key]?.let { a -> score(a, query).takeIf { it > 0 }?.plus(ALIAS_BONUS) } ?: 0
+                app to maxOf(score(app.label, query), alias)
+            }
             .filter { it.second > 0 }
             .sortedWith(
                 compareByDescending<Pair<AppInfo, Int>> { it.second }
