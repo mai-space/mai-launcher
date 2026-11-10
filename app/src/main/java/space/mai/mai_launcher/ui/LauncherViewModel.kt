@@ -38,6 +38,10 @@ import space.mai.mai_launcher.domain.MaiSummaryApps
 import space.mai.mai_launcher.summary.MaiSummaries
 import space.mai.mai_launcher.summary.MaiSummaryReader
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import space.mai.mai_launcher.data.NotesStore
+import space.mai.mai_launcher.domain.Note
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import space.mai.mai_launcher.domain.LayoutBackupCodec
@@ -101,6 +105,8 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     private val homeRole = HomeRole(app)
     private val prefs = LauncherPrefs(app)
     private val log = LaunchLog(app, viewModelScope).also { it.load() }
+    private val notesStore = NotesStore(app, viewModelScope).also { it.load() }
+    val notes: StateFlow<List<Note>> = notesStore.notes
     private val predictor = Predictor()
     val icons = IconLoader(repo, (48 * app.resources.displayMetrics.density).toInt())
 
@@ -177,6 +183,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         val signals: Boolean = true,
         val calendar: Boolean = true,
         val contacts: Boolean = true,
+        val assistant: Boolean = false,
     )
 
     val destinations = prefs.destinations
@@ -295,6 +302,12 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     fun runCommand(cmd: Command) {
+        if (cmd is Command.Note) {
+            notesStore.add(cmd.text)
+            feedback.tick()
+            closeIndex()
+            return
+        }
         actions.run(cmd)
         if (cmd !is Command.Answer) closeIndex()
     }
@@ -375,6 +388,21 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     /** Freigegeben: App-Info (dort entziehen); sonst anfragen. */
     fun settingsCalendar() {
         if (_access.value.calendar) actions.launcherInfo() else host?.requestCalendar()
+    }
+
+    /** Assistenten-Geste: Systemseite „Digitaler Assistent“ (dort Mai Launcher wählen). */
+    fun settingsAssistant() {
+        val ctx = getApplication<Application>()
+        runCatching { ctx.startActivity(homeRole.assistantSettingsIntent().addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+            .onFailure { actions.systemSettings() }
+    }
+
+    /** Assistenten-Geste (lange Home-Taste, Ecke wischen): Befehlszeile mit Tastatur. */
+    fun onAssist() {
+        _editMode.value = false
+        _pickingSlot.value = null
+        _query.value = ""
+        openIndex(withKeyboard = true)
     }
 
     fun settingsContacts() {
@@ -567,7 +595,78 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
     }
 
+    // --- Rückgängig (10 s) ---
+
+    private companion object {
+        const val UNDO_MS = 10_000L
+    }
+
+    private val _undo = MutableStateFlow<UndoKind?>(null)
+    val undo: StateFlow<UndoKind?> = _undo.asStateFlow()
+    private var undoAction: (() -> Unit)? = null
+    private var undoCommit: (() -> Unit)? = null
+    private var undoJob: Job? = null
+
+    /** Widgets, die entfernt, aber noch nicht gelöscht sind (Rückgängig möglich). */
+    private val _pendingWidgetRemoval = MutableStateFlow<Set<Int>>(emptySet())
+    val pendingWidgetRemoval: StateFlow<Set<Int>> = _pendingWidgetRemoval.asStateFlow()
+
+    private fun offerUndo(kind: UndoKind, undo: () -> Unit, commit: () -> Unit = {}) {
+        commitUndo()
+        undoAction = undo
+        undoCommit = commit
+        _undo.value = kind
+        undoJob = viewModelScope.launch {
+            delay(UNDO_MS)
+            commitUndo()
+        }
+    }
+
+    /** Frist abgelaufen (oder nächste Aktion): endgültig ausführen. */
+    private fun commitUndo() {
+        val commit = undoCommit
+        undoJob?.cancel()
+        undoJob = null
+        undoAction = null
+        undoCommit = null
+        _undo.value = null
+        commit?.invoke()
+    }
+
+    fun undoLast() {
+        val action = undoAction ?: return
+        undoJob?.cancel()
+        undoJob = null
+        undoAction = null
+        undoCommit = null
+        _undo.value = null
+        action()
+        feedback.tick()
+    }
+
+    fun removeWidget(id: Int) {
+        _pendingWidgetRemoval.value += id
+        offerUndo(
+            UndoKind.Widget,
+            undo = { _pendingWidgetRemoval.value -= id },
+            commit = { widgets.remove(id); _pendingWidgetRemoval.value -= id },
+        )
+    }
+
+    fun removeFeed(url: String) {
+        val before = feeds.state.value.urls
+        feeds.remove(url)
+        offerUndo(UndoKind.Feed, undo = { feeds.replaceAll(before) })
+    }
+
+    fun noteDone(note: Note) {
+        notesStore.remove(note.id)
+        offerUndo(UndoKind.Note, undo = { notesStore.restore(note) })
+    }
+
     fun onHidden() {
+        // Wer den Startbildschirm verlässt, hat sich entschieden.
+        commitUndo()
         system.stop()
         media.stop()
         calendar.stop()
@@ -581,6 +680,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             signals = media.hasAccess(),
             calendar = calendar.hasAccess(),
             contacts = contacts.hasAccess(),
+            assistant = homeRole.isAssistant(),
         )
         _access.value = a
         if (a.contacts) contacts.start()

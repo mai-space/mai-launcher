@@ -18,6 +18,8 @@ sealed interface Command {
     data class Setting(val page: SettingPage) : Command
     /** Nummer an die Telefon-App übergeben (nur Wählen, kein Anruf). */
     data class Dial(val number: String) : Command
+    /** Notiz speichern (verschlüsselt, nur auf dem Gerät). */
+    data class Note(val text: String) : Command
     /** Websuche im Standard-Browser – nur auf Tippen, nie automatisch. */
     data class WebSearch(val query: String) : Command
 }
@@ -33,6 +35,7 @@ object CommandParser {
         if (q.isEmpty()) return emptyList()
         val lower = q.lowercase(Locale.ROOT)
         val out = mutableListOf<Command>()
+        note(q)?.let { return listOf(it) }
         verb(lower)?.let(out::add)
         percent(lower)?.let(out::add)
         units(lower)?.let(out::add)
@@ -47,6 +50,14 @@ object CommandParser {
     fun isExplicit(cmd: Command): Boolean = cmd !is Command.WebSearch && cmd !is Command.Setting
 
     // ------------------------------------------------------------ Verben
+
+    private val noteWords = listOf("note", "notiz", "merke")
+
+    /** „note Milch kaufen“ → Notiz. Nur die Notiz, keine Websuche danach. */
+    private fun note(q: String): Command? {
+        val word = noteWords.firstOrNull { q.lowercase(Locale.ROOT).startsWith("$it ") } ?: return null
+        return NotesCodec.clean(q.substring(word.length))?.let { Command.Note(it) }
+    }
 
     private val timerWords = listOf("timer", "countdown")
     private val alarmWords = listOf("alarm", "wecker")

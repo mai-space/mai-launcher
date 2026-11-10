@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onRoot
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
 import org.junit.Test
+import space.mai.mai_launcher.domain.Note
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performTouchInput
@@ -533,5 +534,30 @@ class ScreenshotTest {
         compose.onNodeWithContentDescription("Music").performTouchInput { longClick() }
         compose.waitForIdle()
         compose.onRoot().captureRoboImage("../project-docs/screenshots/19_deck_likely_why.png")
+    }
+
+    @Test fun deckNotes() {
+        compose.setContent {
+            Frame {
+                DeckScreen(
+                    DeckState(
+                        system = system,
+                        dock = listOf(tile("Phone"), tile("Messages"), tile("Camera"), tile("Browser")),
+                        likely = listOf(tile("Music"), tile("Calendar"), tile("Ruf durch"), tile("Notes")),
+                        likelyWindow = 20 to 22,
+                        appCount = apps.size,
+                        zone = zone,
+                        notes = listOf(
+                            Note(1, "Paket bei der Post abholen", at(8, 9, 0)),
+                            Note(2, "Sam wegen Samstag fragen", at(8, 12, 0)),
+                            Note(3, "Fahrradlicht reparieren", at(8, 18, 0)),
+                        ),
+                        undo = UndoKind.Note,
+                    ),
+                    DeckActions(),
+                )
+            }
+        }
+        compose.onRoot().captureRoboImage("../project-docs/screenshots/20_deck_notes.png")
     }
 }

@@ -72,6 +72,7 @@ fun CommandRow(cmd: Command, highlighted: Boolean, onRun: (Command) -> Unit) {
         Command.Stopwatch -> Triple(stringResource(R.string.cmd_tag_clock), stringResource(R.string.cmd_stopwatch), null)
         is Command.Setting -> Triple(stringResource(R.string.cmd_tag_setting), settingName(cmd.page), null)
         is Command.Dial -> Triple(stringResource(R.string.cmd_tag_dial), cmd.number, null)
+        is Command.Note -> Triple(stringResource(R.string.cmd_tag_note), cmd.text, stringResource(R.string.cmd_note_save))
         is Command.WebSearch -> Triple(stringResource(R.string.cmd_tag_web), stringResource(R.string.cmd_web, cmd.query), null)
     }
     ResultRow(tag, text, hint, highlighted, if (cmd is Command.WebSearch) MaiColors.Text2 else accent) { onRun(cmd) }

@@ -70,6 +70,7 @@ data class SettingsState(
     val signals: Boolean = true,
     val calendar: Boolean = true,
     val contacts: Boolean = true,
+    val assistant: Boolean = false,
     val signalsShowText: Boolean = false,
     val forecast: Boolean = true,
     val haptics: HapticLevel = HapticLevel.Light,
@@ -94,6 +95,7 @@ class SettingsActions(
     val onNotifications: () -> Unit = {},
     val onCalendar: () -> Unit = {},
     val onContacts: () -> Unit = {},
+    val onAssistant: () -> Unit = {},
     val onSystemSettings: () -> Unit = {},
     val onAppInfo: () -> Unit = {},
     val onExport: () -> Unit = {},
@@ -160,6 +162,8 @@ fun SettingsScreen(state: SettingsState, actions: SettingsActions, modifier: Mod
                         access(state.calendar), actions.onCalendar, on = state.calendar)
                     SettingRow(stringResource(R.string.settings_contacts), stringResource(R.string.settings_contacts_body),
                         access(state.contacts), actions.onContacts, on = state.contacts)
+                    SettingRow(stringResource(R.string.settings_assistant), stringResource(R.string.settings_assistant_body),
+                        if (state.assistant) stringResource(R.string.settings_on) else stringResource(R.string.settings_open), actions.onAssistant)
                 }
                 MaiPanel(stringResource(R.string.settings_backup), Modifier.fillMaxWidth()) {
                     SettingRow(stringResource(R.string.settings_export), stringResource(R.string.settings_export_body),

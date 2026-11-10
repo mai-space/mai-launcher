@@ -65,6 +65,8 @@ class SystemActions(private val context: Context) {
             is Command.Setting -> setting(cmd.page)
             is Command.Dial -> start(Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", cmd.number, null)))
             // Erst auf Tippen; Suchmaschine bestimmt die Such-App bzw. der Browser.
+            // Notizen speichert das ViewModel selbst.
+            is Command.Note -> Unit
             is Command.WebSearch -> start(
                 Intent(Intent.ACTION_WEB_SEARCH).putExtra(SearchManager.QUERY, cmd.query),
                 Intent(Intent.ACTION_VIEW, "https://duckduckgo.com/?q=${Uri.encode(cmd.query)}".toUri()),

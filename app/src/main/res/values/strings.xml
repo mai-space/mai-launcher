@@ -260,4 +260,19 @@
         <item quantity="one">You opened %1$s %2$d time around %3$s–%4$s h in the last 4 weeks.</item>
         <item quantity="other">You opened %1$s %2$d times around %3$s–%4$s h in the last 4 weeks.</item>
     </plurals>
+    <string name="cmd_tag_note">NOTE</string>
+    <string name="cmd_note_save">SAVE</string>
+    <string name="panel_notes">NOTES</string>
+    <plurals name="notes_count">
+        <item quantity="one">%d NOTE</item>
+        <item quantity="other">%d NOTES</item>
+    </plurals>
+    <string name="notes_more">+ %d MORE</string>
+    <string name="notes_done">Mark as done</string>
+    <string name="undo">Undo</string>
+    <string name="undo_widget">Widget removed</string>
+    <string name="undo_feed">Feed removed</string>
+    <string name="undo_note">Note done</string>
+    <string name="settings_assistant">Assistant gesture</string>
+    <string name="settings_assistant_body">Choose Mai Launcher as digital assistant: the gesture opens the command line.</string>
 </resources>

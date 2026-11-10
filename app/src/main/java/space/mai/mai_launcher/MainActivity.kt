@@ -69,6 +69,7 @@ class MainActivity : ComponentActivity(), LauncherHost {
         val dark = SystemBarStyle.dark(MaiColors.Void.copy(alpha = 0f).toArgb())
         enableEdgeToEdge(statusBarStyle = dark, navigationBarStyle = dark)
         vm.host = this
+        if (intent?.action == Intent.ACTION_ASSIST) vm.onAssist()
         setContent { LauncherApp(vm) }
     }
 
@@ -97,6 +98,7 @@ class MainActivity : ComponentActivity(), LauncherHost {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         if (intent.action == Intent.ACTION_MAIN && intent.hasCategory(Intent.CATEGORY_HOME)) vm.onHome()
+        if (intent.action == Intent.ACTION_ASSIST) vm.onAssist()
     }
 
     // --- LauncherHost ---

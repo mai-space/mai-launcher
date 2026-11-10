@@ -67,6 +67,8 @@ import space.mai.mai_launcher.system.SystemState
 import space.mai.mai_launcher.ui.AppTile
 import space.mai.mai_launcher.ui.AppToken
 import space.mai.mai_launcher.ui.LikelyTokens
+import space.mai.mai_launcher.ui.UndoKind
+import space.mai.mai_launcher.domain.Note
 import space.mai.mai_launcher.domain.AppKey
 import space.mai.mai_launcher.domain.SignalDigest
 import space.mai.mai_launcher.domain.Forecast
@@ -112,6 +114,10 @@ data class DeckState(
     val forecastApps: Map<String, AppTile> = emptyMap(),
     /** Starts um diese Tageszeit je Vorschlag (für die Erklärung). */
     val likelyReasons: Map<AppKey, Int> = emptyMap(),
+    /** Notizen aus der Befehlszeile (leer = kein Panel). */
+    val notes: List<Note> = emptyList(),
+    /** Gerade rückgängig machbar (null = keine Leiste). */
+    val undo: UndoKind? = null,
 )
 
 /** Aktionen des Decks. */
@@ -146,6 +152,8 @@ class DeckActions(
     val onAddFeed: (String) -> Boolean = { false },
     val onRemoveFeed: (String) -> Unit = {},
     val onHideLikely: (AppKey) -> Unit = {},
+    val onNoteDone: (Note) -> Unit = {},
+    val onUndo: () -> Unit = {},
 )
 
 class MediaActions(
@@ -222,6 +230,7 @@ fun DeckScreen(state: DeckState, actions: DeckActions, modifier: Modifier = Modi
                         EventsPanel(it, state.system.nowMillis, state.zone, state.use24h, actions.onEvent, actions.onCalendar)
                     }
                 }
+                if (state.notes.isNotEmpty()) PowerOnFade(order++) { NotesPanel(state.notes, actions.onNoteDone) }
                 if (state.forecast.isNotEmpty()) {
                     val today = Instant.ofEpochMilli(state.system.nowMillis).atZone(state.zone).toLocalDate()
                     PowerOnFade(order++) { ForecastPanel(state.forecast, state.forecastApps, Forecast.daysLeftInWeek(today), actions.onApp) }
@@ -252,6 +261,7 @@ fun DeckScreen(state: DeckState, actions: DeckActions, modifier: Modifier = Modi
                 if (!large) PowerOnFade(order) { SystemPanel(state.system, actions.onBattery, actions.onStorage) }
                 Spacer(Modifier.height(4.dp))
             }
+            state.undo?.let { UndoBar(it, actions.onUndo) }
             Spacer(Modifier.height(8.dp))
             GripLine()
             Spacer(Modifier.height(10.dp))
