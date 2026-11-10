@@ -7,6 +7,11 @@ import androidx.compose.ui.test.onRoot
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
 import org.junit.Test
+import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.performTouchInput
+import space.mai.mai_launcher.domain.AppShortcut
+import space.mai.mai_launcher.domain.IndexTab
 import space.mai.mai_launcher.design.Comfort
 import space.mai.mai_launcher.design.ComfortState
 import space.mai.mai_launcher.design.toAccent
@@ -477,5 +482,56 @@ class ScreenshotTest {
         } finally {
             ComfortState.current = Comfort()
         }
+    }
+
+    @Test fun indexMenu() {
+        // Reiter, Alias und geöffnetes Langdruck-Menü mit Verknüpfungen.
+        compose.setContent {
+            Frame {
+                IndexScreen(
+                    IndexState(
+                        apps = apps,
+                        results = emptyList(),
+                        query = "",
+                        likely = emptyList(),
+                        likelyWindow = 20 to 22,
+                        tabs = listOf(IndexTab.All, IndexTab.Work, IndexTab.Hidden),
+                        aliases = mapOf(tile("Ärzte").key to "doc"),
+                        dock = listOf(tile("Phone"), tile("Messages"), tile("Camera"), tile("Browser")),
+                    ),
+                    IndexActions(
+                        loadShortcuts = {
+                            listOf(AppShortcut("new", "app.calendar", "New event", 0), AppShortcut("today", "app.calendar", "Today", 0))
+                        },
+                    ),
+                    focusSignal = 0,
+                )
+            }
+        }
+        compose.onNodeWithContentDescription("Calendar").performTouchInput { longClick() }
+        compose.waitForIdle()
+        compose.onRoot().captureRoboImage("../project-docs/screenshots/18_index_menu.png")
+    }
+
+    @Test fun deckLikelyWhy() {
+        compose.setContent {
+            Frame {
+                DeckScreen(
+                    DeckState(
+                        system = system,
+                        dock = listOf(tile("Phone"), tile("Messages"), tile("Camera"), tile("Browser")),
+                        likely = listOf(tile("Music"), tile("Calendar"), tile("Ruf durch"), tile("Notes")),
+                        likelyWindow = 20 to 22,
+                        appCount = apps.size,
+                        zone = zone,
+                        likelyReasons = mapOf(tile("Music").key to 9),
+                    ),
+                    DeckActions(),
+                )
+            }
+        }
+        compose.onNodeWithContentDescription("Music").performTouchInput { longClick() }
+        compose.waitForIdle()
+        compose.onRoot().captureRoboImage("../project-docs/screenshots/19_deck_likely_why.png")
     }
 }

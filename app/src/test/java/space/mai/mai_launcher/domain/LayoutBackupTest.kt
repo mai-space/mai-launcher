@@ -18,6 +18,9 @@ class LayoutBackupTest {
         highContrast = true,
         reduceMotion = false,
         large = true,
+        hidden = setOf(AppKey("app.game", "Main")),
+        likelyHidden = setOf(AppKey("app.news", "Main")),
+        aliases = mapOf(AppKey("app.bank", "Main") to "Bank"),
     )
 
     @Test fun roundTrip() {
@@ -30,7 +33,7 @@ class LayoutBackupTest {
         val text = LayoutBackupCodec.encode(sample)
         // Nur bekannte Schlüssel – kein Startverlauf, kein Comms-Verlauf.
         val keys = text.lines().drop(1).filter { it.isNotBlank() }.map { it.substringBefore('=').substringBefore('.') }.toSet()
-        assertEquals(setOf("dock", "dest", "feed", "widget", "signals_show_text", "haptics", "sounds", "accent", "comfort_contrast", "comfort_motion", "comfort_large"), keys)
+        assertEquals(setOf("dock", "dest", "feed", "widget", "signals_show_text", "haptics", "sounds", "accent", "comfort_contrast", "comfort_motion", "comfort_large", "hidden", "likely_hidden", "alias"), keys)
     }
 
     @Test fun readsTolerantly() {

@@ -240,4 +240,22 @@
     <string name="settings_motion_body">Kein Einzeichnen, sofortige Wechsel. Auch an, wenn Android-Animationen aus sind.</string>
     <string name="settings_large">Große Ansicht</string>
     <string name="settings_large_body">Größere Schrift, Sechsecke und Zeilen; weniger Panels auf dem Deck</string>
+    <string name="index_tab_all">ALLE</string>
+    <string name="index_tab_work">ARBEIT</string>
+    <string name="index_tab_hidden">AUSGEBLENDET</string>
+    <string name="index_tab_empty">Hier ist nichts.</string>
+    <string name="action_menu">Verknüpfungen und Optionen</string>
+    <string name="action_pin_dock">Ins Dock</string>
+    <string name="action_pin_dock_hint">Welchen Dock-Platz ersetzen?</string>
+    <string name="action_hide">Ausblenden</string>
+    <string name="action_unhide">Wieder zeigen</string>
+    <string name="action_alias">Alias</string>
+    <string name="alias_hint">Eigener Suchname, z. B. bank</string>
+    <string name="likely_reason_pattern">%1$s passt zu deinem Muster um diese Tageszeit.</string>
+    <string name="likely_hide">Nie vorschlagen</string>
+    <string name="likely_ok">OK</string>
+    <plurals name="likely_reason">
+        <item quantity="one">Du hast %1$s in den letzten 4 Wochen %2$d-mal um %3$s–%4$s Uhr geöffnet.</item>
+        <item quantity="other">Du hast %1$s in den letzten 4 Wochen %2$d-mal um %3$s–%4$s Uhr geöffnet.</item>
+    </plurals>
 </resources>

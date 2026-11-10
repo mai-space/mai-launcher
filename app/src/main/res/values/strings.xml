@@ -242,4 +242,22 @@
     <string name="settings_motion_body">No draw-in, instant transitions. Also on when Android animations are off.</string>
     <string name="settings_large">Large view</string>
     <string name="settings_large_body">Bigger text, hexagons and rows; fewer panels on the Deck</string>
+    <string name="index_tab_all">ALL</string>
+    <string name="index_tab_work">WORK</string>
+    <string name="index_tab_hidden">HIDDEN</string>
+    <string name="index_tab_empty">Nothing here.</string>
+    <string name="action_menu">Shortcuts and options</string>
+    <string name="action_pin_dock">To dock</string>
+    <string name="action_pin_dock_hint">Replace which dock slot?</string>
+    <string name="action_hide">Hide</string>
+    <string name="action_unhide">Show again</string>
+    <string name="action_alias">Alias</string>
+    <string name="alias_hint">Own search name, e.g. bank</string>
+    <string name="likely_reason_pattern">%1$s fits your recent pattern at this time of day.</string>
+    <string name="likely_hide">Never suggest</string>
+    <string name="likely_ok">OK</string>
+    <plurals name="likely_reason">
+        <item quantity="one">You opened %1$s %2$d time around %3$s–%4$s h in the last 4 weeks.</item>
+        <item quantity="other">You opened %1$s %2$d times around %3$s–%4$s h in the last 4 weeks.</item>
+    </plurals>
 </resources>

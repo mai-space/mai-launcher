@@ -55,6 +55,22 @@ class Predictor(
             .map { it.key }
     }
 
+    /**
+     * Begründung für einen Vorschlag: wie oft die App in den letzten
+     * [days] Tagen um diese Tageszeit (± [windowHours]) gestartet wurde.
+     */
+    fun reason(events: List<LaunchEvent>, key: AppKey, nowMillis: Long, days: Int = 28, windowHours: Double = 1.5): Int {
+        val now = ZonedDateTime.ofInstant(Instant.ofEpochMilli(nowMillis), zone)
+        val nowHour = now.hour + now.minute / 60.0
+        val from = nowMillis - days * 86_400_000L
+        return events.count { e ->
+            if (e.key != key || e.epochMillis > nowMillis || e.epochMillis < from) return@count false
+            val t = ZonedDateTime.ofInstant(Instant.ofEpochMilli(e.epochMillis), zone)
+            val diff = abs(t.hour + t.minute / 60.0 - nowHour).let { min(it, 24 - it) }
+            diff <= windowHours
+        }
+    }
+
     /** Zeitfenster für die Beschriftung ("07–09"): aktuelle Stunde ±1. */
     fun window(nowMillis: Long): Pair<Int, Int> {
         val h = ZonedDateTime.ofInstant(Instant.ofEpochMilli(nowMillis), zone).hour

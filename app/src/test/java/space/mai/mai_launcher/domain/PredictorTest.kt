@@ -54,4 +54,12 @@ class PredictorTest {
         assertEquals(Pair(23, 1), p.window(at(9, 0, 30)))
         assertEquals(Pair(6, 8), p.window(at(9, 7, 30)))
     }
+
+    @Test fun reasonCountsLaunchesAroundThisTime() {
+        // Montag 9.11., 08:00: News lief Mo–Fr um 07:30 (im Fenster ±1,5 h), Musik nie.
+        assertEquals(5, p.reason(history, news, at(9, 8, 0)))
+        assertEquals(0, p.reason(history, music, at(9, 8, 0)))
+        // Älter als 28 Tage zählt nicht.
+        assertEquals(0, p.reason(history, news, at(9, 8, 0) + 40L * 86_400_000L))
+    }
 }
