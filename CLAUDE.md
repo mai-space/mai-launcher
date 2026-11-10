@@ -40,7 +40,7 @@ Systemsprache. Paket `space.mai.mai_launcher`, CI-Artefakt `mai-launcher.apk`.
   `mai_launcher_log_key` und Dateiname `launch_log.bin` nie ändern; neue
   Formate nur mit neuer Versionsnummer und Lesbarkeit der alten.
 - **Einstellungen** (`LauncherPrefs`, Schlüssel `dock_0..3`, `dest_home`, `dest_work`, `setup_dismissed`,
-  `widgets`, `feeds`, `mai_widgets_seen`, `comms_log`, `signals_show_text`, `feedback_haptics`, `feedback_sounds`, `mai_forecast`) tolerant lesen,
+  `widgets`, `feeds`, `mai_widgets_seen`, `comms_log`, `signals_show_text`, `feedback_haptics`, `feedback_sounds`, `mai_forecast`, `accent`, `comfort_contrast`, `comfort_motion`, `comfort_large`) tolerant lesen,
   Schlüssel nie umbenennen.
 
 - **Layout-Sicherung** (`LayoutBackupCodec`, Kopf `mai-launcher-layout v1`,
@@ -79,3 +79,8 @@ Systemsprache. Paket `space.mai.mai_launcher`, CI-Artefakt `mai-launcher.apk`.
   Drosselt Maven Central, hilft `ROBOLECTRIC_REPO_URL` (Spiegel-URL).
 - Neue native Bibliotheken ggf. in `app/proguard-rules.pro` absichern.
 - Kommentare im Code auf Deutsch.
+- **Darstellung** (`domain/Appearance.kt`): `AccentChoice` wird als Index
+  gespeichert – nur am Ende erweitern. Komfort-Modi wirken über
+  `design/Comfort.kt` (`ComfortState`); Farben/Maße, die davon abhängen,
+  sind Getter in `Tokens.kt`/`Type.kt`. Animationen über `motion(...)`, damit
+  „weniger Bewegung“ greift.

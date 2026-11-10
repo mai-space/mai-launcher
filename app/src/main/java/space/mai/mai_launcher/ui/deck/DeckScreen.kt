@@ -44,6 +44,13 @@ import androidx.compose.ui.unit.dp
 import androidx.core.os.ConfigurationCompat
 import space.mai.mai_launcher.R
 import space.mai.mai_launcher.design.CommandShape
+import space.mai.mai_launcher.design.ComfortState
+import space.mai.mai_launcher.design.LocalPowerOn
+import space.mai.mai_launcher.design.PowerOnFade
+import space.mai.mai_launcher.design.rememberPowerOn
+import space.mai.mai_launcher.design.rememberTicking
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.unit.Dp
 import space.mai.mai_launcher.design.GripLine
 import space.mai.mai_launcher.design.HexToken
 import space.mai.mai_launcher.design.LocalAccent
@@ -148,6 +155,9 @@ class MediaActions(
 fun DeckScreen(state: DeckState, actions: DeckActions, modifier: Modifier = Modifier) {
     val threshold = with(LocalDensity.current) { 72.dp.toPx() }
     val scroll = rememberScrollState()
+    val large = ComfortState.current.large
+    val powerOn = rememberPowerOn()
+    CompositionLocalProvider(LocalPowerOn provides powerOn) {
     Row(
         modifier
             .fillMaxSize()
@@ -186,31 +196,43 @@ fun DeckScreen(state: DeckState, actions: DeckActions, modifier: Modifier = Modi
                     .verticalScroll(scroll),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                // Einschalt-Animation: Panels blenden je 40 ms versetzt ein.
+                var order = 0
                 if (state.editMode) EditBar(actions)
-                if (state.setup.isNotEmpty()) SetupPanel(state.setup, actions.onSetup, actions.onDismissSetup)
-                state.navigation?.let { NavigationPanel(it, actions.onNavigation) }
+                if (state.setup.isNotEmpty()) PowerOnFade(order++) { SetupPanel(state.setup, actions.onSetup, actions.onDismissSetup) }
+                state.navigation?.let { PowerOnFade(order++) { NavigationPanel(it, actions.onNavigation) } }
                 state.nowPlaying?.let {
-                    MediaPanel(it, state.art, actions.media.elapsedNow, actions.media.onOpen,
-                        actions.media.onPrevious, actions.media.onPlayPause, actions.media.onNext)
+                    PowerOnFade(order++) {
+                        MediaPanel(it, state.art, actions.media.elapsedNow, actions.media.onOpen,
+                            actions.media.onPrevious, actions.media.onPlayPause, actions.media.onNext)
+                    }
                 }
                 state.signals?.takeIf { it.isNotEmpty() }?.let {
-                    SignalsPanel(it, state.signalsShowText, state.system.nowMillis, actions.onSignal, actions.onToggleSignalText)
+                    PowerOnFade(order++) {
+                        SignalsPanel(it, state.signalsShowText, state.system.nowMillis, actions.onSignal, actions.onToggleSignalText)
+                    }
                 }
                 state.events?.let {
-                    EventsPanel(it, state.system.nowMillis, state.zone, state.use24h, actions.onEvent, actions.onCalendar)
+                    PowerOnFade(order++) {
+                        EventsPanel(it, state.system.nowMillis, state.zone, state.use24h, actions.onEvent, actions.onCalendar)
+                    }
                 }
                 if (state.forecast.isNotEmpty()) {
                     val today = Instant.ofEpochMilli(state.system.nowMillis).atZone(state.zone).toLocalDate()
-                    ForecastPanel(state.forecast, state.forecastApps, Forecast.daysLeftInWeek(today), actions.onApp)
+                    PowerOnFade(order++) { ForecastPanel(state.forecast, state.forecastApps, Forecast.daysLeftInWeek(today), actions.onApp) }
                 }
                 if (state.editMode || state.destinations.any { it.isNotBlank() }) {
-                    DestinationsPanel(state.destinations, state.editMode, actions.onDestination, actions.onSetDestination)
+                    PowerOnFade(order++) {
+                        DestinationsPanel(state.destinations, state.editMode, actions.onDestination, actions.onSetDestination)
+                    }
                 }
-                LikelyPanel(state, actions.onApp)
+                PowerOnFade(order++) { LikelyPanel(state, actions.onApp) }
                 if (state.editMode || state.news.urls.isNotEmpty()) {
                     val n = state.news
-                    NewsPanel(n.items, n.urls, n.failed, n.loading, state.system.nowMillis, state.editMode,
-                        actions.onOpenLink, actions.onRefreshNews, actions.onAddFeed, actions.onRemoveFeed)
+                    PowerOnFade(order++) {
+                        NewsPanel(n.items, n.urls, n.failed, n.loading, state.system.nowMillis, state.editMode,
+                            actions.onOpenLink, actions.onRefreshNews, actions.onAddFeed, actions.onRemoveFeed)
+                    }
                 }
                 state.widgets.forEach { w ->
                     WidgetPanel(
@@ -221,17 +243,19 @@ fun DeckScreen(state: DeckState, actions: DeckActions, modifier: Modifier = Modi
                         content = actions.widgetContent,
                     )
                 }
-                SystemPanel(state.system, actions.onBattery, actions.onStorage)
+                // Große Ansicht: weniger Panels – Akku/Speicher stehen ohnehin in der Statusleiste.
+                if (!large) PowerOnFade(order) { SystemPanel(state.system, actions.onBattery, actions.onStorage) }
                 Spacer(Modifier.height(4.dp))
             }
             Spacer(Modifier.height(8.dp))
             GripLine()
             Spacer(Modifier.height(10.dp))
-            Dock(state.dock, state.badges, actions.onApp, actions.onDockLongPress)
+            Dock(state.dock, state.badges, if (large) 48.dp else 40.dp, actions.onApp, actions.onDockLongPress)
             Spacer(Modifier.height(10.dp))
             CommandBar(actions.onCommand, actions.onMic)
         }
         SideRail(state.system, actions.rail, Modifier.width(MaiDims.RailWidth).fillMaxHeight(), notifications = state.badges.values.sum())
+    }
     }
 }
 
@@ -287,7 +311,7 @@ private fun LikelyPanel(state: DeckState, onApp: (AppTile) -> Unit) {
             MaiText(stringResource(R.string.panel_likely_learning), MaiType.Body, maxLines = 2)
         } else {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                state.likely.take(4).forEach { AppToken(it, Modifier.weight(1f), size = 42.dp) { onApp(it) } }
+                state.likely.take(4).forEach { AppToken(it, Modifier.weight(1f), size = if (ComfortState.current.large) 48.dp else 42.dp) { onApp(it) } }
             }
         }
     }
@@ -305,7 +329,8 @@ private fun SystemPanel(sys: SystemState, onBattery: () -> Unit, onStorage: () -
             modifier = Modifier.weight(1f).clickable(role = Role.Button, onClick = onBattery),
         ) {
             Spacer(Modifier.height(6.dp))
-            MaiText(battery?.let { "$it %" } ?: "–", MaiType.Title.copy(fontFamily = MaiType.Mono.fontFamily),
+            val shown = battery?.let { rememberTicking(it) }
+            MaiText(shown?.let { "$it %" } ?: "–", MaiType.Title.copy(fontFamily = MaiType.Mono.fontFamily),
                 color = if (low) MaiColors.Alert else MaiColors.Text)
             Spacer(Modifier.height(8.dp))
             MaiBar((battery ?: 0) / 100f, Modifier.fillMaxWidth(), if (low) MaiColors.Alert else LocalAccent.current.main)
@@ -331,12 +356,12 @@ private fun SystemPanel(sys: SystemState, onBattery: () -> Unit, onStorage: () -
 private fun formatGb(v: Double): String = if (v >= 100) v.roundToInt().toString() else "%.1f".format(v)
 
 @Composable
-private fun Dock(dock: List<AppTile?>, badges: Map<String, Int>, onApp: (AppTile) -> Unit, onLongPress: (Int) -> Unit) {
+private fun Dock(dock: List<AppTile?>, badges: Map<String, Int>, size: Dp, onApp: (AppTile) -> Unit, onLongPress: (Int) -> Unit) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
         dock.forEachIndexed { i, tile ->
             if (tile != null) {
                 AppToken(
-                    tile, Modifier.weight(1f), size = 40.dp, showName = false,
+                    tile, Modifier.weight(1f), size = size, showName = false,
                     badge = SignalDigest.badgeText(badges[tile.key.packageName] ?: 0),
                     onLongClick = { onLongPress(i) },
                 ) { onApp(tile) }
@@ -344,7 +369,7 @@ private fun Dock(dock: List<AppTile?>, badges: Map<String, Int>, onApp: (AppTile
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                     HexToken(
                         contentDescription = stringResource(R.string.dock_slot_empty),
-                        size = 40.dp, text = "+", color = MaiColors.Text3, filled = false,
+                        size = size, text = "+", color = MaiColors.Text3, filled = false,
                         onLongClick = { onLongPress(i) }, onClick = { onLongPress(i) },
                     )
                 }

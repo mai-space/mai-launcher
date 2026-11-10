@@ -110,7 +110,7 @@ private fun ResultRow(tag: String, text: String, hint: String?, highlighted: Boo
             .fillMaxWidth()
             .padding(start = 26.dp, top = 1.dp, bottom = 1.dp)
             .then(if (highlighted) Modifier.background(MaiColors.Panel2, shape).glowBorder(shape, color, 1.dp, GlowLevel.Focus) else Modifier)
-            .heightIn(min = MaiDims.MinTouch)
+            .heightIn(min = MaiDims.ListRow)
             .clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = 10.dp),
         verticalAlignment = Alignment.CenterVertically,

@@ -26,6 +26,7 @@ import space.mai.mai_launcher.design.MaiLabel
 import space.mai.mai_launcher.design.MaiPanel
 import space.mai.mai_launcher.design.MaiText
 import space.mai.mai_launcher.design.MaiType
+import space.mai.mai_launcher.design.rememberTicking
 import space.mai.mai_launcher.domain.ForecastLine
 import space.mai.mai_launcher.ui.AppTile
 import space.mai.mai_launcher.ui.rememberAppIcon
@@ -69,7 +70,7 @@ fun ForecastPanel(lines: List<ForecastLine>, apps: Map<String, AppTile>, daysLef
                 is ForecastLine.Household -> ForecastRow(
                     tile, onApp,
                     label = stringResource(R.string.forecast_household),
-                    value = line.dueToday.toString(),
+                    value = rememberTicking(line.dueToday).toString(),
                     valueColor = MaiColors.Text,
                     detail = listOfNotNull(
                         line.nextChore,

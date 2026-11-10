@@ -208,7 +208,7 @@ private fun ContactLine(contact: Contact, rufDurch: Boolean, actions: CommsActio
         Row(
             Modifier
                 .fillMaxWidth()
-                .heightIn(min = MaiDims.MinTouch)
+                .heightIn(min = MaiDims.ListRow)
                 .clickable(role = Role.Button) { open = !open }
                 .padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
