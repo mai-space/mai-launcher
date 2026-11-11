@@ -60,6 +60,12 @@ import space.mai.mai_launcher.ui.settings.DockSlot
 import space.mai.mai_launcher.data.LauncherPrefs
 import space.mai.mai_launcher.domain.AppInfo
 import space.mai.mai_launcher.domain.AppKey
+import space.mai.mai_launcher.domain.Board
+import space.mai.mai_launcher.domain.BoardBackup
+import space.mai.mai_launcher.domain.BoardKind
+import space.mai.mai_launcher.domain.Boards
+import space.mai.mai_launcher.domain.PageOrder
+import space.mai.mai_launcher.domain.PageRef
 import space.mai.mai_launcher.domain.AppSearch
 import space.mai.mai_launcher.domain.MaiWidgets
 import space.mai.mai_launcher.domain.ProviderRef
@@ -149,7 +155,8 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     /** Einschalt-Animation auslösen (entprellt: Home-Taste und Fortsetzen kommen oft zusammen). */
     private fun powerOn() {
         val now = SystemClock.uptimeMillis()
-        if (now - lastPowerOn < 400) return
+        // Vorgemerktes Einblenden nie verschlucken, sonst bliebe das Deck unsichtbar.
+        if (now - lastPowerOn < 400 && !ComfortState.powerOnArmed) return
         lastPowerOn = now
         ComfortState.powerOn++
     }
@@ -466,6 +473,13 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             hidden = prefs.hiddenApps.value,
             likelyHidden = prefs.likelyHidden.value,
             aliases = prefs.aliases.value,
+            boards = boards.value.map { b ->
+                BoardBackup(
+                    id = b.id, title = b.title, kind = b.kind, accent = b.accent, apps = b.apps,
+                    widgets = b.widgets.mapNotNull { id -> widgets.info(id)?.provider?.let { ProviderRef(it.packageName, it.className) } },
+                )
+            },
+            pageOrder = PageOrder.encode(pages.value),
         )
         host?.exportLayout(LayoutBackupCodec.fileName(java.time.LocalDate.now()), LayoutBackupCodec.encode(backup))
     }
@@ -504,11 +518,29 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         val placed = widgets.ids.value.mapNotNull { id ->
             widgets.info(id)?.provider?.let { ProviderRef(it.packageName, it.className) }
         }.toSet()
-        val todo = b.widgets.filter { it in installed && it !in placed }
+        val todo: MutableList<Pair<ProviderRef, String?>> = b.widgets.filter { it in installed && it !in placed }.map { it to null }.toMutableList()
+        // Boards: nur neue (gleiche ID = schon vorhanden); Apps wie beim Dock abbilden.
+        val existing = boards.value
+        val added = b.boards.filter { nb -> existing.none { it.id == nb.id } }.take((Boards.MAX_BOARDS - existing.size).coerceAtLeast(0))
+        if (added.isNotEmpty()) {
+            val restored = added.map { nb ->
+                val mapped = LayoutBackupCodec.resolveKeys(nb.apps, installedApps)
+                Board(
+                    id = nb.id, title = nb.title, kind = nb.kind,
+                    accent = nb.accent ?: space.mai.mai_launcher.domain.BoardTemplates.accent(nb.kind),
+                    apps = nb.apps.mapNotNull { mapped[it] }.distinct().take(Boards.MAX_APPS),
+                )
+            }
+            val all = existing + restored
+            val order = b.pageOrder?.let { PageOrder.decode(it, all.map { x -> x.id }) } ?: pages.value
+            prefs.setBoards(all, order)
+            added.forEach { nb -> nb.widgets.filter { it in installed }.forEach { todo += it to nb.id } }
+        }
         _backupStatus.value = BackupStatus.Imported(
             dock = dock.count { it != null },
             feeds = b.feeds.size,
             widgets = todo.size,
+            boards = added.size,
         )
         if (todo.isNotEmpty() && pendingWidget == null) {
             maiQueue = ArrayDeque(todo)
@@ -523,9 +555,128 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         list.filter { it.key.packageName in pkgs && !it.isWork }.map { it.toTile() }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    fun openMedia() {
+    fun openMedia() = goToPage(PageRef.Media)
+
+    // --- Seiten und eigene Dashboards (Boards) ---
+
+    val boards: StateFlow<List<Board>> = prefs.boards
+    val pages: StateFlow<List<PageRef>> = prefs.pages
+
+    /** Gerade angezeigtes Board (nur gültig, solange [screen] = Board). */
+    private val _boardId = MutableStateFlow<String?>(null)
+    val boardId: StateFlow<String?> = _boardId.asStateFlow()
+
+    /** Board, für das gerade eine App ausgewählt wird (Index im Auswahlmodus). */
+    private val _boardPick = MutableStateFlow<String?>(null)
+    val boardPick: StateFlow<String?> = _boardPick.asStateFlow()
+
+    /** Ziel für das nächste Widget: Board-ID oder null = Deck. */
+    private var widgetTarget: String? = null
+
+    /** Seite des aktuellen Bildschirms; null = keine Wisch-Seite (Index, Einstellungen …). */
+    fun currentPage(): PageRef? = when (_screen.value) {
+        Screen.Deck -> PageRef.Deck
+        Screen.Comms -> PageRef.Comms
+        Screen.Media -> PageRef.Media
+        Screen.Board -> _boardId.value?.let { PageRef.OfBoard(it) }
+        else -> null
+    }
+
+    /** Wischen: −1 = Seite links davon (nach rechts gewischt), +1 = rechts davon. */
+    fun swipePage(direction: Int) {
+        val current = currentPage() ?: return
+        PageOrder.neighbour(pages.value, current, direction)?.let(::goToPage)
+    }
+
+    fun goToPage(page: PageRef) {
         _editMode.value = false
-        _screen.value = Screen.Media
+        if (_screen.value == Screen.Comms && page != PageRef.Comms) resetComms()
+        when (page) {
+            PageRef.Deck -> _screen.value = Screen.Deck
+            PageRef.Media -> _screen.value = Screen.Media
+            PageRef.Comms -> { _screen.value = Screen.Comms; contacts.start() }
+            is PageRef.OfBoard -> {
+                if (boards.value.none { it.id == page.id }) { _screen.value = Screen.Deck; return }
+                _boardId.value = page.id
+                _screen.value = Screen.Board
+            }
+        }
+    }
+
+    private fun board(id: String): Board? = boards.value.firstOrNull { it.id == id }
+
+    private fun updateBoard(id: String, change: (Board) -> Board) {
+        val list = boards.value
+        if (list.none { it.id == id }) return
+        prefs.setBoards(list.map { if (it.id == id) change(it) else it })
+    }
+
+    /** Neues Dashboard aus einer Vorlage: Apps werden vorgeschlagen, dann öffnet es im Bearbeiten-Modus. */
+    fun createBoard(kind: BoardKind) {
+        val list = boards.value
+        if (list.size >= Boards.MAX_BOARDS) return
+        val b = Boards.create(kind, list.mapTo(HashSet()) { it.id }, apps.value.filterNot { it.key in prefs.hiddenApps.value })
+        prefs.setBoards(list + b, pages.value + PageRef.OfBoard(b.id))
+        feedback.tick()
+        goToPage(PageRef.OfBoard(b.id))
+        _editMode.value = true
+    }
+
+    fun renameBoard(id: String, title: String) = updateBoard(id) { it.copy(title = Boards.cleanTitle(title)) }
+
+    fun cycleBoardAccent(id: String) = updateBoard(id) { it.copy(accent = it.accent.next()) }
+
+    fun moveBoardApp(id: String, key: AppKey, delta: Int) = updateBoard(id) { Boards.moveApp(it, key, delta) }
+
+    fun removeBoardApp(id: String, key: AppKey) = updateBoard(id) { Boards.removeApp(it, key) }
+
+    fun moveBoardWidget(id: String, widgetId: Int, delta: Int) = updateBoard(id) { Boards.moveWidget(it, widgetId, delta) }
+
+    /** Seite (auch Comms/Deck/Media) in der Wisch-Reihenfolge verschieben. */
+    fun movePage(page: PageRef, delta: Int) {
+        prefs.setPages(PageOrder.move(pages.value, page, delta))
+        feedback.tick()
+    }
+
+    /** Index im Auswahlmodus öffnen; die gewählte App kommt aufs Board. */
+    fun startPickingForBoard(id: String) {
+        _pickingSlot.value = null
+        _boardPick.value = id
+        pickReturn = Screen.Board
+        _editMode.value = false
+        _screen.value = Screen.Index
+    }
+
+    fun openBoardWidgetPicker(id: String) {
+        widgetTarget = id
+        _screen.value = Screen.Widgets
+    }
+
+    /** Board löschen – 10 s rückgängig; erst danach werden seine Widgets freigegeben. */
+    fun deleteBoard(id: String) {
+        val list = boards.value
+        val b = list.firstOrNull { it.id == id } ?: return
+        val order = pages.value
+        prefs.setBoards(list - b, order)
+        if (_screen.value == Screen.Board && _boardId.value == id) goToPage(PageRef.Deck)
+        offerUndo(
+            UndoKind.Board,
+            undo = { prefs.setBoards(boards.value + b, order) },
+            commit = { b.widgets.forEach { widgets.discard(it) } },
+        )
+    }
+
+    fun removeBoardWidget(id: String, widgetId: Int) {
+        _pendingWidgetRemoval.value += widgetId
+        offerUndo(
+            UndoKind.Widget,
+            undo = { _pendingWidgetRemoval.value -= widgetId },
+            commit = {
+                widgets.discard(widgetId)
+                updateBoard(id) { it.copy(widgets = it.widgets - widgetId) }
+                _pendingWidgetRemoval.value -= widgetId
+            },
+        )
     }
 
     // --- Comms ---
@@ -543,14 +694,14 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         if (q.isBlank()) list else ContactRanking.search(list, q, log)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    fun openComms() {
-        _editMode.value = false
-        _screen.value = Screen.Comms
-        contacts.start()
-    }
+    fun openComms() = goToPage(PageRef.Comms)
 
     fun closeComms() {
         _screen.value = Screen.Deck
+        resetComms()
+    }
+
+    private fun resetComms() {
         _commsQuery.value = ""
         _keypadOpen.value = false
         _dialed.value = ""
@@ -579,7 +730,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     fun onVisible() {
         systemAnimatorScale = readAnimatorScale()
         applyComfort(prefs.appearance.value)
-        if (_screen.value == Screen.Deck) powerOn()
+        if (_screen.value == Screen.Deck) powerOn() else ComfortState.powerOnArmed = false
         system.start()
         system.refresh()
         widgets.startListening()
@@ -667,6 +818,8 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     fun onHidden() {
         // Wer den Startbildschirm verlässt, hat sich entschieden.
         commitUndo()
+        // Beim nächsten Anzeigen blendet das Deck von schwarz ein (kein Aufblitzen des alten Bildes).
+        if (_screen.value == Screen.Deck) ComfortState.armPowerOn()
         system.stop()
         media.stop()
         calendar.stop()
@@ -729,10 +882,11 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     fun closeIndex() {
         voice.stop()
         // Dock-Auswahl aus den Einstellungen: dorthin zurück.
-        _screen.value = if (_pickingSlot.value != null) pickReturn else Screen.Deck
+        _screen.value = if (_pickingSlot.value != null || _boardPick.value != null) pickReturn else Screen.Deck
         pickReturn = Screen.Deck
         _query.value = ""
         _pickingSlot.value = null
+        _boardPick.value = null
         _indexTab.value = IndexTab.All
     }
 
@@ -741,7 +895,9 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     fun onHome() {
         _editMode.value = false
         if (_screen.value == Screen.Comms) closeComms()
-        if (_screen.value == Screen.Media || _screen.value == Screen.Settings) _screen.value = Screen.Deck
+        if (_screen.value == Screen.Media || _screen.value == Screen.Settings || _screen.value == Screen.Board ||
+            _screen.value == Screen.Widgets) _screen.value = Screen.Deck
+        _boardPick.value = null
         pickReturn = Screen.Deck
         closeIndex()
         powerOn()
@@ -749,7 +905,9 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun onBack(): Boolean {
         when {
-            _screen.value == Screen.Widgets -> _screen.value = Screen.Deck
+            _screen.value == Screen.Widgets -> _screen.value = if (widgetTarget != null && _boardId.value == widgetTarget) Screen.Board else Screen.Deck
+            _screen.value == Screen.Board && _editMode.value -> _editMode.value = false
+            _screen.value == Screen.Board -> _screen.value = Screen.Deck
             _screen.value == Screen.Media -> _screen.value = Screen.Deck
             _screen.value == Screen.Settings -> _screen.value = Screen.Deck
             _screen.value == Screen.Comms && _keypadOpen.value -> _keypadOpen.value = false
@@ -767,6 +925,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun startPickingDock(slot: Int) {
         pickReturn = Screen.Deck
+        _boardPick.value = null
         _pickingSlot.value = slot
         openIndex(withKeyboard = false)
     }
@@ -778,9 +937,18 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             closeIndex()
             return
         }
+        val pickBoard = _boardPick.value
+        if (pickBoard != null) {
+            updateBoard(pickBoard) { Boards.addApp(it, key) }
+            feedback.tick()
+            closeIndex()
+            _editMode.value = true
+            return
+        }
         if (repo.launch(key, bounds)) {
             log.record(key)
-            closeIndex()
+            // Vom Dashboard aus gestartet: beim Zurückkehren wieder dort sein.
+            if (_screen.value != Screen.Board) closeIndex()
         }
     }
 
@@ -825,6 +993,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     private var pendingWidget: Int? = null
 
     fun openWidgetPicker() {
+        widgetTarget = null
         _screen.value = Screen.Widgets
     }
 
@@ -833,7 +1002,8 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     fun addWidget(option: WidgetOption) {
         val (id, needsBind) = widgets.allocate(option.provider)
         pendingWidget = id
-        _screen.value = Screen.Deck
+        val target = widgetTarget
+        _screen.value = if (target != null && board(target) != null) { _boardId.value = target; Screen.Board } else Screen.Deck
         _editMode.value = true
         if (needsBind) host?.bindWidget(id, option.provider) ?: onWidgetBound(false) else onWidgetBound(true)
     }
@@ -864,19 +1034,19 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Warteschlange für „Mai-Widgets hinzufügen“: nacheinander über den System-Dialog. */
-    private var maiQueue: ArrayDeque<ProviderRef>? = null
+    private var maiQueue: ArrayDeque<Pair<ProviderRef, String?>>? = null
 
     private fun addMaiWidgets() {
-        maiQueue = ArrayDeque(_maiPending.value)
+        maiQueue = ArrayDeque(_maiPending.value.map { it to null })
         nextMaiWidget()
     }
 
     private fun nextMaiWidget() {
         val queue = maiQueue ?: return
-        val ref = queue.removeFirstOrNull()
-        if (ref == null) { maiQueue = null; autoAddMaiWidgets(); return }
+        val (ref, target) = queue.removeFirstOrNull() ?: run { maiQueue = null; autoAddMaiWidgets(); return }
         prefs.markMaiWidgetsSeen(listOf(ref.packageName))
-        _maiPending.value = queue.toList()
+        widgetTarget = target?.takeIf { board(it) != null }
+        _maiPending.value = queue.filter { it.second == null }.map { it.first }
         val provider = ComponentName(ref.packageName, ref.className)
         val (id, needsBind) = widgets.allocate(provider)
         pendingWidget = id
@@ -887,9 +1057,9 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     fun onWidgetBound(ok: Boolean) {
         val id = pendingWidget ?: return
         if (!ok) {
-            widgets.discard(id); pendingWidget = null
+            widgets.discard(id); pendingWidget = null; widgetTarget = null
             // Abgelehnt: übrige Mai-Widgets nicht weiter nachfragen.
-            maiQueue?.let { q -> prefs.markMaiWidgetsSeen(q.map { it.packageName }); maiQueue = null; _maiPending.value = emptyList() }
+            maiQueue?.let { q -> prefs.markMaiWidgetsSeen(q.map { it.first.packageName }); maiQueue = null; _maiPending.value = emptyList() }
             return
         }
         if (widgets.needsConfigure(id)) host?.configureWidget(id) ?: onWidgetConfigured(false) else onWidgetConfigured(true)
@@ -898,7 +1068,15 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     fun onWidgetConfigured(ok: Boolean) {
         val id = pendingWidget ?: return
         pendingWidget = null
-        if (ok) widgets.commit(id) else widgets.discard(id)
+        val target = widgetTarget
+        widgetTarget = null
+        when {
+            !ok -> widgets.discard(id)
+            target != null && board(target) != null && widgets.info(id) != null ->
+                updateBoard(target) { if (id in it.widgets) it else it.copy(widgets = it.widgets + id) }
+            target != null -> widgets.discard(id)
+            else -> widgets.commit(id)
+        }
         if (maiQueue != null) nextMaiWidget()
     }
 

@@ -275,4 +275,37 @@
     <string name="undo_note">Note done</string>
     <string name="settings_assistant">Assistant gesture</string>
     <string name="settings_assistant_body">Choose Mai Launcher as digital assistant: the gesture opens the command line.</string>
+
+    <!-- Eigene Dashboards -->
+    <string name="undo_board">Dashboard deleted</string>
+    <string name="boards_title">Dashboards</string>
+    <string name="boards_meta">%d PAGES</string>
+    <string name="boards_body">Swipe left and right between these pages. Tap a name to open it, move it with the arrows.</string>
+    <string name="boards_home">Home screen (home button)</string>
+    <string name="boards_new">New dashboard</string>
+    <string name="boards_template">Start from</string>
+    <string name="boards_template_body">Matching apps on this phone are suggested; you can change them afterwards. Nothing leaves the phone.</string>
+    <string name="boards_full">Maximum number of dashboards reached.</string>
+    <string name="settings_backup_boards">%d dashboards restored.</string>
+    <string name="board_kind_custom">Empty</string>
+    <string name="board_kind_finance">Banking</string>
+    <string name="board_kind_fitness">Fitness</string>
+    <string name="board_kind_home">Home</string>
+    <string name="board_kind_health">Health</string>
+    <string name="board_kind_travel">Travel</string>
+    <string name="board_kind_work">Work</string>
+    <string name="board_apps">Apps</string>
+    <string name="board_apps_empty">No apps here yet. Add the apps that belong to this topic.</string>
+    <string name="board_apps_edit_hint">Tap an app to move or remove it.</string>
+    <string name="board_add_app">App</string>
+    <string name="board_remove">Remove</string>
+    <string name="board_edit">Edit dashboard</string>
+    <string name="board_name">Name</string>
+    <string name="board_color">Colour</string>
+    <string name="board_page">Page</string>
+    <string name="board_delete">Delete</string>
+    <string name="board_move_page_left">Move %1$s left</string>
+    <string name="board_move_page_right">Move %1$s right</string>
+    <string name="page_position">Page %1$d of %2$d</string>
+    <string name="pick_board_hint">PICK AN APP FOR THE DASHBOARD</string>
 </resources>

@@ -85,6 +85,7 @@ fun UndoBar(kind: UndoKind, onUndo: () -> Unit) {
                     UndoKind.Widget -> R.string.undo_widget
                     UndoKind.Feed -> R.string.undo_feed
                     UndoKind.Note -> R.string.undo_note
+                    UndoKind.Board -> R.string.undo_board
                 },
             ),
             MaiType.Body, Modifier.weight(1f), color = MaiColors.Text2,

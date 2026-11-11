@@ -59,6 +59,16 @@ import space.mai.mai_launcher.ui.settings.SettingsActions
 import space.mai.mai_launcher.ui.settings.SettingsScreen
 import space.mai.mai_launcher.ui.settings.SettingsState
 import java.time.ZoneId
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import space.mai.mai_launcher.domain.BoardKind
+import space.mai.mai_launcher.domain.PageRef
+import space.mai.mai_launcher.ui.boards.BoardActions
+import space.mai.mai_launcher.ui.boards.BoardScreen
+import space.mai.mai_launcher.ui.boards.BoardState
+import space.mai.mai_launcher.ui.settings.PageEntry
 
 /**
  * Rendert Deck und Index mit erfundenen Daten. Bilder werden nur mit
@@ -559,5 +569,105 @@ class ScreenshotTest {
             }
         }
         compose.onRoot().captureRoboImage("../project-docs/screenshots/20_deck_notes.png")
+    }
+
+    // ------------------------------------------------------------ Eigene Dashboards
+
+    @Test fun boardFinance() {
+        val bud = AppInfo(AppKey(MaiSummaryApps.BUDGET, "Main"), "Budget")
+        val bankApps = listOf("Budget", "Sparbank", "PayWallet", "Broker", "Steuer", "Kassenbuch")
+            .map { AppTile(AppKey("app.${it.lowercase()}", "Main"), it) }
+        compose.setContent {
+            CompositionLocalProvider(LocalAccent provides AccentChoice.Violet.toAccent()) {
+                MaiBackground {
+                    BoardScreen(
+                        BoardState(
+                            id = "b1",
+                            title = null,
+                            kind = BoardKind.Finance,
+                            apps = bankApps,
+                            forecast = listOf(ForecastLine.Budget("340 €", false, "Car insurance", "420 €", 2)),
+                            forecastApps = mapOf(bud.key.packageName to AppTile(bud.key, bud.label)),
+                            badges = mapOf("app.sparbank" to 1),
+                            pageIndex = 3,
+                            pageCount = 5,
+                        ),
+                        BoardActions(),
+                    )
+                }
+            }
+        }
+        compose.onRoot().captureRoboImage("../project-docs/screenshots/21_board_finance.png")
+    }
+
+    @Test fun boardEdit() {
+        compose.setContent {
+            CompositionLocalProvider(LocalAccent provides AccentChoice.Signal.toAccent()) {
+                MaiBackground {
+                    BoardScreen(
+                        BoardState(
+                            id = "b2",
+                            title = "Laufen",
+                            kind = BoardKind.Fitness,
+                            apps = listOf(tile("Fitness"), tile("Maps"), tile("Music"), tile("Weather"), tile("Clock")),
+                            editMode = true,
+                            pageIndex = 4,
+                            pageCount = 5,
+                        ),
+                        BoardActions(),
+                    )
+                }
+            }
+        }
+        compose.onNodeWithContentDescription("Maps").performClick()
+        compose.waitForIdle()
+        compose.onRoot().captureRoboImage("../project-docs/screenshots/22_board_edit.png")
+    }
+
+    @Test fun deckWithBoards() {
+        compose.setContent {
+            Frame {
+                DeckScreen(
+                    DeckState(
+                        system = system,
+                        dock = listOf(tile("Phone"), tile("Messages"), tile("Camera"), tile("Browser")),
+                        likely = listOf(tile("Music"), tile("Calendar"), tile("Ruf durch"), tile("Notes")),
+                        likelyWindow = 20 to 22,
+                        appCount = apps.size,
+                        zone = zone,
+                        pageIndex = 1,
+                        pageCount = 5,
+                    ),
+                    DeckActions(),
+                )
+            }
+        }
+        compose.onRoot().captureRoboImage("../project-docs/screenshots/23_deck_pages.png")
+    }
+
+    @Test fun settingsBoards() {
+        compose.setContent {
+            Frame {
+                SettingsScreen(
+                    SettingsState(
+                        dock = listOf(DockSlot(tile("Phone"), false), DockSlot(tile("Messages"), false),
+                            DockSlot(tile("Music"), true), DockSlot(tile("Browser"), false)),
+                        pages = listOf(
+                            PageEntry(PageRef.Comms, accent = AccentChoice.Signal),
+                            PageEntry(PageRef.Deck, accent = AccentChoice.Ion),
+                            PageEntry(PageRef.Media, accent = AccentChoice.Amber),
+                            PageEntry(PageRef.OfBoard("b1"), kind = BoardKind.Finance, accent = AccentChoice.Violet, appCount = 6),
+                            PageEntry(PageRef.OfBoard("b2"), title = "Laufen", kind = BoardKind.Fitness, accent = AccentChoice.Signal, appCount = 5),
+                        ),
+                    ),
+                    SettingsActions(),
+                )
+            }
+        }
+        // Zum Dashboard-Panel scrollen.
+        compose.onNodeWithText("New dashboard", substring = true, ignoreCase = true).performScrollTo().performClick()
+        compose.waitForIdle()
+        compose.onAllNodesWithText("Banking", ignoreCase = true)[1].performScrollTo()
+        compose.onRoot().captureRoboImage("../project-docs/screenshots/24_settings_boards.png")
     }
 }

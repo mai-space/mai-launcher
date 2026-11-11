@@ -8,6 +8,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import space.mai.mai_launcher.domain.AccentChoice
 import space.mai.mai_launcher.domain.AliasCodec
 import space.mai.mai_launcher.domain.AppKey
+import space.mai.mai_launcher.domain.Board
+import space.mai.mai_launcher.domain.BoardCodec
+import space.mai.mai_launcher.domain.PageOrder
+import space.mai.mai_launcher.domain.PageRef
 import space.mai.mai_launcher.domain.Appearance
 import space.mai.mai_launcher.domain.HapticLevel
 import space.mai.mai_launcher.domain.SoundLevel
@@ -159,6 +163,27 @@ class LauncherPrefs(context: Context) {
         prefs.edit { putStringSet("aliases", AliasCodec.encode(map)) }
         _aliases.value = AliasCodec.decode(AliasCodec.encode(map))
     }
+
+    private val _boards = MutableStateFlow(BoardCodec.decode(prefs.getString("boards", null)))
+    /** Eigene Dashboards (Schlüssel `boards`, Format „boards v1“). */
+    val boards: StateFlow<List<Board>> = _boards.asStateFlow()
+
+    private val _pages = MutableStateFlow(PageOrder.decode(prefs.getString("page_order", null), _boards.value.map { it.id }))
+    /** Reihenfolge der Seiten zum Wischen (Schlüssel `page_order`). */
+    val pages: StateFlow<List<PageRef>> = _pages.asStateFlow()
+
+    /** Boards und Reihenfolge gemeinsam schreiben, damit beide zueinander passen. */
+    fun setBoards(boards: List<Board>, order: List<PageRef> = _pages.value) {
+        val next = PageOrder.normalize(order, boards.map { it.id })
+        prefs.edit {
+            putString("boards", BoardCodec.encode(boards))
+            putString("page_order", PageOrder.encode(next))
+        }
+        _boards.value = boards
+        _pages.value = next
+    }
+
+    fun setPages(order: List<PageRef>) = setBoards(_boards.value, order)
 
     companion object {
         const val DOCK_SLOTS = 4

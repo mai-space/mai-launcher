@@ -26,12 +26,16 @@ data class LayoutBackup(
     val hidden: Set<AppKey> = emptySet(),
     val likelyHidden: Set<AppKey> = emptySet(),
     val aliases: Map<AppKey, String> = emptyMap(),
+    /** Eigene Dashboards (Widgets als Anbieter, weil IDs gerätespezifisch sind). */
+    val boards: List<BoardBackup> = emptyList(),
+    /** Seitenreihenfolge im Format von [PageOrder] (leer = nicht gesichert). */
+    val pageOrder: String? = null,
 ) {
     val isEmpty: Boolean
         get() = dock.all { it == null } && destinations.all { it.isBlank() } && feeds.isEmpty() &&
             widgets.isEmpty() && signalsShowText == null && haptics == null && sounds == null &&
             accent == null && highContrast == null && reduceMotion == null && large == null &&
-            hidden.isEmpty() && likelyHidden.isEmpty() && aliases.isEmpty()
+            hidden.isEmpty() && likelyHidden.isEmpty() && aliases.isEmpty() && boards.isEmpty()
 
     /** Darstellung aus der Sicherung über die aktuelle legen (fehlende Werte bleiben). */
     fun appearanceOver(current: Appearance): Appearance = current.copy(
@@ -41,6 +45,16 @@ data class LayoutBackup(
         large = large ?: current.large,
     )
 }
+
+/** Ein Board in der Sicherung. */
+data class BoardBackup(
+    val id: String,
+    val title: String? = null,
+    val kind: BoardKind = BoardKind.Custom,
+    val accent: AccentChoice? = null,
+    val apps: List<AppKey> = emptyList(),
+    val widgets: List<ProviderRef> = emptyList(),
+)
 
 object LayoutBackupCodec {
     const val HEADER = "mai-launcher-layout v1"
@@ -62,6 +76,16 @@ object LayoutBackupCodec {
         b.hidden.map { it.encode() }.sorted().forEach { line("hidden", it) }
         b.likelyHidden.map { it.encode() }.sorted().forEach { line("likely_hidden", it) }
         AliasCodec.encode(b.aliases).sorted().forEach { line("alias", it) }
+        // Boards: „board=<id>“ beginnt ein Board, „board.*“ gehört zum zuletzt begonnenen.
+        b.boards.forEach { bd ->
+            line("board", bd.id)
+            bd.title?.let { line("board.title", it) }
+            line("board.kind", bd.kind.name.lowercase())
+            bd.accent?.let { line("board.accent", it.name.lowercase()) }
+            bd.apps.forEach { line("board.app", it.encode()) }
+            bd.widgets.forEach { line("board.widget", "${it.packageName}/${it.className}") }
+        }
+        b.pageOrder?.let { line("page_order", it) }
     }
 
     private fun StringBuilder.line(key: String, value: String) {
@@ -88,6 +112,13 @@ object LayoutBackupCodec {
         val hidden = HashSet<AppKey>()
         val likelyHidden = HashSet<AppKey>()
         val aliasLines = mutableListOf<String>()
+        val boards = mutableListOf<BoardBackup>()
+        var pageOrder: String? = null
+        // Index des Boards, zu dem „board.*“-Zeilen gehören (−1 = keins, z. B. doppelte ID).
+        var current = -1
+        fun board(update: (BoardBackup) -> BoardBackup) {
+            if (current >= 0) boards[current] = update(boards[current])
+        }
         for (l in lines.drop(1)) {
             val eq = l.indexOf('=')
             if (eq <= 0) continue
@@ -112,10 +143,21 @@ object LayoutBackupCodec {
                 key == "hidden" -> AppKey.decode(value)?.let(hidden::add)
                 key == "likely_hidden" -> AppKey.decode(value)?.let(likelyHidden::add)
                 key == "alias" -> aliasLines += value
+                key == "board" -> current = if (value.isNotBlank() && boards.none { it.id == value.trim() }) {
+                    boards += BoardBackup(value.trim()); boards.lastIndex
+                } else {
+                    -1
+                }
+                key == "board.title" -> board { it.copy(title = Boards.cleanTitle(value)) }
+                key == "board.kind" -> board { it.copy(kind = BoardKind.of(value)) }
+                key == "board.accent" -> AccentChoice.entries.firstOrNull { it.name.equals(value, true) }?.let { a -> board { it.copy(accent = a) } }
+                key == "board.app" -> AppKey.decode(value)?.let { k -> board { if (k in it.apps) it else it.copy(apps = it.apps + k) } }
+                key == "board.widget" -> provider(value)?.let { p -> board { if (p in it.widgets) it else it.copy(widgets = it.widgets + p) } }
+                key == "page_order" -> pageOrder = value
             }
         }
         return LayoutBackup(dock.toList(), listOf(home, work), feeds, widgets, showText, haptics, sounds, accent, contrast, motion, large,
-            hidden, likelyHidden, AliasCodec.decode(aliasLines))
+            hidden, likelyHidden, AliasCodec.decode(aliasLines), boards, pageOrder)
     }
 
     private fun provider(raw: String): ProviderRef? {

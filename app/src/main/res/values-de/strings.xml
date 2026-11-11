@@ -273,4 +273,37 @@
     <string name="undo_note">Notiz erledigt</string>
     <string name="settings_assistant">Assistenten-Geste</string>
     <string name="settings_assistant_body">Mai Launcher als digitalen Assistenten wählen: Die Geste öffnet die Befehlszeile.</string>
+
+    <!-- Eigene Dashboards -->
+    <string name="undo_board">Dashboard gelöscht</string>
+    <string name="boards_title">Dashboards</string>
+    <string name="boards_meta">%d SEITEN</string>
+    <string name="boards_body">Zwischen diesen Seiten nach links und rechts wischen. Name tippen öffnet, Pfeile verschieben.</string>
+    <string name="boards_home">Startbildschirm (Home-Taste)</string>
+    <string name="boards_new">Neues Dashboard</string>
+    <string name="boards_template">Vorlage</string>
+    <string name="boards_template_body">Passende Apps auf diesem Telefon werden vorgeschlagen; du kannst sie danach ändern. Nichts verlässt das Telefon.</string>
+    <string name="boards_full">Höchstzahl an Dashboards erreicht.</string>
+    <string name="settings_backup_boards">%d Dashboards wiederhergestellt.</string>
+    <string name="board_kind_custom">Leer</string>
+    <string name="board_kind_finance">Banking</string>
+    <string name="board_kind_fitness">Fitness</string>
+    <string name="board_kind_home">Zuhause</string>
+    <string name="board_kind_health">Gesundheit</string>
+    <string name="board_kind_travel">Unterwegs</string>
+    <string name="board_kind_work">Arbeit</string>
+    <string name="board_apps">Apps</string>
+    <string name="board_apps_empty">Hier sind noch keine Apps. Füge die Apps hinzu, die zu diesem Thema gehören.</string>
+    <string name="board_apps_edit_hint">App antippen, um sie zu verschieben oder zu entfernen.</string>
+    <string name="board_add_app">App</string>
+    <string name="board_remove">Entfernen</string>
+    <string name="board_edit">Dashboard bearbeiten</string>
+    <string name="board_name">Name</string>
+    <string name="board_color">Farbe</string>
+    <string name="board_page">Seite</string>
+    <string name="board_delete">Löschen</string>
+    <string name="board_move_page_left">%1$s nach links</string>
+    <string name="board_move_page_right">%1$s nach rechts</string>
+    <string name="page_position">Seite %1$d von %2$d</string>
+    <string name="pick_board_hint">APP FÜRS DASHBOARD WÄHLEN</string>
 </resources>

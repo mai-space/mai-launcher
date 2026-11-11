@@ -87,4 +87,35 @@ class LayoutBackupTest {
         assertEquals(Appearance(AccentChoice.Ion, highContrast = false, reduceMotion = true, large = true), b.appearanceOver(current))
         assertEquals(current, LayoutBackup().appearanceOver(current))
     }
+
+    @Test fun boardsRoundTripAndStayFreeOfHistory() {
+        val withBoards = sample.copy(
+            boards = listOf(
+                BoardBackup("b1", "Geld", BoardKind.Finance, AccentChoice.Violet, listOf(AppKey("app.bank", "Main")),
+                    listOf(ProviderRef("app.bank", "BalanceWidget"))),
+                BoardBackup("b2", kind = BoardKind.Fitness),
+            ),
+            pageOrder = "comms,deck,board:b1,media,board:b2",
+        )
+        val text = LayoutBackupCodec.encode(withBoards)
+        assertEquals(withBoards, LayoutBackupCodec.decode(text))
+        val keys = text.lines().drop(1).filter { it.isNotBlank() }.map { it.substringBefore('=').substringBefore('.') }.toSet()
+        assertEquals(setOf("dock", "dest", "feed", "widget", "signals_show_text", "haptics", "sounds", "accent", "comfort_contrast",
+            "comfort_motion", "comfort_large", "hidden", "likely_hidden", "alias", "board", "page_order"), keys)
+    }
+
+    @Test fun boardLinesWithoutBoardOrDuplicateAreSkipped() {
+        val text = """
+            mai-launcher-layout v1
+            board.title=verwaist
+            board=b1
+            board.kind=fitness
+            board=b1
+            board.title=doppelt
+        """.trimIndent()
+        val b = LayoutBackupCodec.decode(text)!!
+        assertEquals(listOf(BoardBackup("b1", kind = BoardKind.Fitness)), b.boards)
+        // Ältere Sicherungen ohne Boards bleiben gültig.
+        assertEquals(emptyList<BoardBackup>(), LayoutBackupCodec.decode(LayoutBackupCodec.encode(sample))!!.boards)
+    }
 }

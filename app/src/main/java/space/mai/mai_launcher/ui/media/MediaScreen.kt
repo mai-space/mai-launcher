@@ -90,6 +90,8 @@ class MediaScreenActions(
     val onApp: (AppTile) -> Unit = {},
     val onAllow: () -> Unit = {},
     val onClose: () -> Unit = {},
+    /** Wischen: −1 = Seite links davon (Standard: Deck), +1 = rechts davon. */
+    val onSwipe: (Int) -> Unit = { if (it < 0) onClose() },
 )
 
 /** Media: was in irgendeiner App spielt. Kontextfarbe Bernstein. */
@@ -103,12 +105,17 @@ fun MediaScreen(state: MediaState, actions: MediaScreenActions, modifier: Modifi
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(start = 14.dp, end = 14.dp, top = 6.dp, bottom = 8.dp)
-            // Nach rechts wischen = zurück zum Deck.
+            // Wischen blättert zur Nachbarseite (Standard: nach rechts = zurück zum Deck).
             .pointerInput(Unit) {
                 var total = 0f
                 detectHorizontalDragGestures(
                     onDragStart = { total = 0f },
-                    onDragEnd = { if (total > threshold) actions.onClose() },
+                    onDragEnd = {
+                        when {
+                            total > threshold -> actions.onSwipe(-1)
+                            total < -threshold -> actions.onSwipe(1)
+                        }
+                    },
                 ) { _, dx -> total += dx }
             },
     ) {

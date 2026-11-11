@@ -1,6 +1,6 @@
 # Mai Launcher: Concept (Phase 1: design and structure)
 
-As of 08.11.2026 · Status: draft, no code yet · Repo: `mai-space/mai-launcher`
+As of 08.11.2026 (dashboards: 11.11.2026) · Status: draft, no code yet · Repo: `mai-space/mai-launcher`
 Working name: **Mai Launcher** (display name open, see open decisions)
 
 Mockups: [`mockups/`](mockups/) (SVG sources plus PNG renders, overview in
@@ -127,8 +127,13 @@ app: show the original colour icon.
 ### Motion
 
 - **Power-on:** when the home screen appears (unlock, home button), the
-  frame outline draws itself in 180 ms, panels fade in 40 ms apart. Total
-  under 250 ms; the first frame is already usable.
+  frame outline draws itself in 180 ms while the Deck fades in from black
+  in steps 40 ms apart: clock, side rail, panels, grip zone (dock and
+  command line) last. Total under 250 ms. When the launcher was hidden it
+  starts from black, so the old picture never flashes up before the
+  animation. "Reduce motion" skips all of it.
+- **Paging:** moving between pages (Comms, Deck, Media, dashboards) slides
+  a quarter of the width in the swipe direction and cross-fades (≈ 200 ms).
 - **Sheets:** slide from the grip zone upwards, with the background dimmed
   to 40 %. Back gesture closes them (predictive back supported).
 - **Data changes:** numbers tick to the new value (mono font keeps them in
@@ -156,11 +161,14 @@ Five areas, all reachable from the Deck with one gesture. No hidden
 gestures that you must learn; every gesture also has a visible button.
 
 ```
-   swipe right: COMMS  ◀────  DECK (home)  ────▶  swipe left: MEDIA
+   COMMS  ◀──  DECK (home)  ──▶  MEDIA  ──▶  BANKING  ──▶  FITNESS  ──▶ …
+          swipe right = page to the left, swipe left = page to the right
                     tap search bar: INDEX (all apps) + COMMAND
                     side rail ALERTS: Android notification shade
                     side rail SETUP: launcher settings
 
+   The default order (Comms, Deck, Media) keeps the old gestures. Users add
+   their own dashboards and can reorder every page (section 2.7).
    No vertical swipes on the Deck: up/down belongs to scrolling panels
    and widgets (changed after testing on the device).
 ```
@@ -172,6 +180,7 @@ gestures that you must learn; every gesture also has a visible button.
 | **Comms** | Signal green | Favourites, recents, keypad, contact actions | `03_comms` |
 | **Media** | Amber | Whatever is playing, from any app; queue, output | `04_media` |
 | **Command** | Ion | Assistant: search, actions, calculator, voice | `05_command` |
+| **Dashboards** | own colour each | User pages per topic (Banking, Fitness, …): apps, widgets, Mai app status | `21_board_finance` |
 
 Fixed elements on every screen:
 
@@ -309,7 +318,66 @@ decision 4.
 - Privacy setting: "Show message text on the home screen" off → only app
   and count.
 
-### 2.7 What a launcher cannot replace (honest limits)
+### 2.7 Dashboards (own pages per topic)
+
+Comms and Media proved that a page per topic beats one long home screen.
+Dashboards make that open-ended: the user creates pages such as
+**Banking**, **Fitness**, **Home**, **Health**, **Travel** or **Work**, or
+an empty one, and swipes between them like between Comms, Deck and Media.
+
+![Banking dashboard](screenshots/21_board_finance.png)
+
+**What a dashboard holds** (all in the same frame and panel language):
+
+| Part | Content | Notes |
+|---|---|---|
+| Title tab | Own name (max. 24 characters) or the template name | Meta shows the app count, "EDITING" in edit mode |
+| Mai status | Budget (Banking), Fitness (Fitness), Household (Home) | Same data and switch as the Forecast panel; nothing stored |
+| Apps | Up to 12 apps as hexagons, 4 per row, with badges | Tap opens, long-press enters edit mode |
+| Widgets | Any Android widget, hosted in a panel | Same host as on the Deck, own list per dashboard |
+| Grip zone | Page ticks and the command line | No dock: the dock belongs to the Deck |
+
+**Creating:** Settings → Dashboards → "New dashboard" → pick a template.
+Templates suggest matching installed apps on the phone itself (the
+matching Mai app first, then keywords on app name and package, e.g.
+"bank", "sparkasse", "paypal" for Banking; "strava", "garmin", "fit" for
+Fitness). Android has no app category for finance or fitness, so this is a
+plain keyword list in `domain/Boards.kt`; short words only match whole
+words ("fit" does not match "Profit"). Suggestions are only a start; the
+page opens in edit mode.
+
+**Editing** (long-press anywhere): rename, change colour (cycles the five
+accents; red stays reserved for alerts), add apps via the Index in pick
+mode, tap an app to move or remove it, add/move/remove widgets, move the
+page left or right, delete the page (undo for 10 s, widget slots are only
+released after that).
+
+**Ordering:** Settings → Dashboards lists all pages (including Comms, Deck
+and Media) with ◂/▸ to move them. The Deck stays the home page (home
+button), wherever it sits. Page ticks show the position; on the Deck they
+only appear once there are more than the three built-in pages, so the
+default Deck looks unchanged.
+
+![Dashboard in edit mode](screenshots/22_board_edit.png)
+![Settings: pages and templates](screenshots/24_settings_boards.png)
+
+**Data and privacy:** everything stays on the phone. Stored are only the
+dashboard id, name, template, colour, app keys and widget ids (setting
+`boards`, text format `boards v1`, extend only) and the page order
+(`page_order`, e.g. `comms,deck,media,board:b7k2q`). The layout backup
+carries dashboards with widget *providers* instead of ids (ids only exist
+on one device); restore adds missing dashboards, maps apps like the dock
+and asks for each widget through the system dialog. No history, contacts
+or notifications are ever part of it.
+
+**Limits:** at most 8 dashboards and 12 apps each, so a dashboard stays one
+calm page and does not become a second app list.
+
+Ideas for later (not built): a dashboard per Android work profile, a
+"show at these times" rule (Work on weekdays 9–17 moves next to the Deck),
+contacts as hexagons on a dashboard (would need its own privacy check).
+
+### 2.8 What a launcher cannot replace (honest limits)
 
 - **Lock screen:** Android does not let third-party apps replace it
   properly. The Deck appears right after unlock instead.
@@ -397,9 +465,8 @@ panels work.
 - One column on phones, panels are full width or half width (two halves
   side by side). No free grid: fewer decisions, always tidy.
 - Heights in steps (S 64, M 104, L 200 dp).
-- Maximum of six panels on the Deck; more go to a second Deck page
-  (swipe within the Deck is reserved for Comms/Media, so further pages
-  scroll vertically).
+- Maximum of six panels on the Deck; more panels belong on a dashboard
+  (section 2.7) rather than a longer Deck.
 
 ---
 
@@ -431,7 +498,7 @@ Same principles as the other Mai apps:
 
 - **Layout export** (`.mailauncher`, plain JSON in a `mai_backup_format`
   container, optional password): accent, modes, Deck panels, dock, aliases,
-  hidden apps, command shortcuts. Apps are referenced by package name;
+  hidden apps, command shortcuts, dashboards and page order. Apps are referenced by package name;
   missing apps are skipped with a note on import ("2 apps not installed").
 - **Full backup** (password required): plus notes, favourites (as contact
   lookup keys, re-matched on import), launch log for predictions.
