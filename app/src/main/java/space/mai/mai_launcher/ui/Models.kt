@@ -16,9 +16,9 @@ data class AppTile(val key: AppKey, val label: String, val isWork: Boolean = fal
 fun AppInfo.toTile() = AppTile(key, label, isWork)
 
 /** Was sich gerade rückgängig machen lässt (10 s nach dem Entfernen). */
-enum class UndoKind { Widget, Feed, Note }
+enum class UndoKind { Widget, Feed, Note, Board }
 
-enum class Screen { Deck, Index, Widgets, Comms, Media, Settings }
+enum class Screen { Deck, Index, Widgets, Comms, Media, Settings, Board }
 
 /** Liefert einfarbige App-Symbole; in Tests/Vorschau ohne Symbole. */
 fun interface IconProvider {

@@ -9,6 +9,16 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import space.mai.mai_launcher.domain.BoardTemplates
+import space.mai.mai_launcher.domain.Boards
+import space.mai.mai_launcher.domain.Forecast
+import space.mai.mai_launcher.domain.PageRef
+import space.mai.mai_launcher.ui.boards.BoardActions
+import space.mai.mai_launcher.ui.boards.BoardScreen
+import space.mai.mai_launcher.ui.boards.BoardState
+import space.mai.mai_launcher.ui.settings.PageEntry
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -59,6 +69,9 @@ import space.mai.mai_launcher.ui.index.IndexState
 import space.mai.mai_launcher.ui.widgets.WidgetChoice
 import space.mai.mai_launcher.ui.widgets.WidgetPickerScreen
 import space.mai.mai_launcher.widgets.WidgetHost
+
+/** Was gerade angezeigt wird; beim Board zusätzlich welches (für die Übergänge). */
+private data class ScreenKey(val screen: Screen, val board: String?)
 
 /** Wurzel: Deck, Index und Widget-Auswahl. */
 @Composable
@@ -114,12 +127,16 @@ fun LauncherApp(vm: LauncherViewModel) {
     val notes by vm.notes.collectAsStateWithLifecycle()
     val undo by vm.undo.collectAsStateWithLifecycle()
     val pendingRemoval by vm.pendingWidgetRemoval.collectAsStateWithLifecycle()
+    val boards by vm.boards.collectAsStateWithLifecycle()
+    val pages by vm.pages.collectAsStateWithLifecycle()
+    val boardId by vm.boardId.collectAsStateWithLifecycle()
+    val boardPick by vm.boardPick.collectAsStateWithLifecycle()
     val areas = remember(appearance.accent) { AppearanceRules.areas(appearance.accent) }
     val comfort = ComfortState.current
 
     val artBitmap = remember(art) { art?.asImageBitmap() }
-    val widgets = remember(widgetIds, pendingRemoval) {
-        widgetIds.filterNot { it in pendingRemoval }.mapNotNull { id ->
+    val slotsOf: (List<Int>) -> List<WidgetSlot> = { ids ->
+        ids.filterNot { it in pendingRemoval }.mapNotNull { id ->
             val info = vm.widgets.info(id) ?: return@mapNotNull null
             val label = info.loadLabel(vm.getApplication<android.app.Application>().packageManager) ?: ""
             val dm = vm.getApplication<android.app.Application>().resources.displayMetrics
@@ -127,6 +144,7 @@ fun LauncherApp(vm: LauncherViewModel) {
             WidgetSlot(id, label, null, h)
         }
     }
+    val widgets = remember(widgetIds, pendingRemoval) { slotsOf(widgetIds) }
 
     val iconProvider = remember(vm) { IconProvider { vm.icons.monochrome(it) } }
     val deckActions = remember(vm) {
@@ -134,8 +152,8 @@ fun LauncherApp(vm: LauncherViewModel) {
             onApp = { vm.onAppTapped(it.key) },
             onDockLongPress = vm::startPickingDock,
             onCommand = { vm.openIndex(withKeyboard = true) },
-            onSwipeRight = vm::openComms,
-            onSwipeLeft = vm::openMedia,
+            onSwipeRight = { vm.swipePage(-1) },
+            onSwipeLeft = { vm.swipePage(1) },
             onMic = vm::startVoice,
             onSignal = vm::openSignal,
             onToggleSignalText = vm::toggleSignalText,
@@ -181,6 +199,7 @@ fun LauncherApp(vm: LauncherViewModel) {
             onNoteDone = vm::noteDone,
             onUndo = vm::undoLast,
             onHideLikely = vm::hideFromLikely,
+            onBoards = vm::openSettings,
         )
     }
     val indexActions = remember(vm) {
@@ -216,6 +235,7 @@ fun LauncherApp(vm: LauncherViewModel) {
             onApp = { vm.onAppTapped(it.key) },
             onAllow = { vm.host?.openNotificationAccess() },
             onClose = vm::onBack,
+            onSwipe = vm::swipePage,
         )
     }
     val commsActions = remember(vm) {
@@ -232,6 +252,7 @@ fun LauncherApp(vm: LauncherViewModel) {
             onClearDial = vm::keypadClear,
             onDial = vm::dialTyped,
             onClose = vm::closeComms,
+            onSwipe = vm::swipePage,
         )
     }
 
@@ -259,8 +280,45 @@ fun LauncherApp(vm: LauncherViewModel) {
             onContrast = vm::toggleContrast,
             onReduceMotion = vm::toggleReduceMotion,
             onLarge = vm::toggleLarge,
+            onMovePage = vm::movePage,
+            onOpenPage = vm::goToPage,
+            onNewBoard = vm::createBoard,
         )
     }
+    // Aktionen je Board (beim Übergang zwischen zwei Boards behält jedes seine eigenen).
+    val boardActionsFor: (String) -> BoardActions = { id ->
+        BoardActions(
+            onApp = { vm.onAppTapped(it.key) },
+            onSwipe = vm::swipePage,
+            onEditMode = vm::setEditMode,
+            onAddApp = { vm.startPickingForBoard(id) },
+            onRemoveApp = { vm.removeBoardApp(id, it) },
+            onMoveApp = { k, d -> vm.moveBoardApp(id, k, d) },
+            onAddWidget = { vm.openBoardWidgetPicker(id) },
+            onMoveWidget = { w, d -> vm.moveBoardWidget(id, w, d) },
+            onRemoveWidget = { vm.removeBoardWidget(id, it) },
+            widgetContent = { slot -> HostedWidget(vm.widgets, slot) },
+            onRename = { vm.renameBoard(id, it) },
+            onAccent = { vm.cycleBoardAccent(id) },
+            onMovePage = { vm.movePage(PageRef.OfBoard(id), it) },
+            onDelete = { vm.deleteBoard(id) },
+            onCommand = { vm.openIndex(withKeyboard = true) },
+            onMic = vm::startVoice,
+            onUndo = vm::undoLast,
+        )
+    }
+
+    // Wisch-Seiten: Stelle in der Reihenfolge je Bildschirm (null = keine Wisch-Seite).
+    val pageOf: (ScreenKey) -> PageRef? = { k ->
+        when (k.screen) {
+            Screen.Deck -> PageRef.Deck
+            Screen.Comms -> PageRef.Comms
+            Screen.Media -> PageRef.Media
+            Screen.Board -> k.board?.let { PageRef.OfBoard(it) }
+            else -> null
+        }
+    }
+    val key = ScreenKey(screen, if (screen == Screen.Board) boardId else null)
 
     // Große Ansicht: Schrift um 15 % größer (zusätzlich zur Systemeinstellung).
     val baseDensity = LocalDensity.current
@@ -285,11 +343,18 @@ fun LauncherApp(vm: LauncherViewModel) {
     ) {
         MaiBackground {
             AnimatedContent(
-                targetState = screen,
+                targetState = key,
                 transitionSpec = {
+                    val from = pageOf(initialState)?.let { pages.indexOf(it) } ?: -1
+                    val to = pageOf(targetState)?.let { pages.indexOf(it) } ?: -1
                     if (comfort.reduceMotion) {
                         EnterTransition.None togetherWith ExitTransition.None
-                    } else if (targetState != Screen.Deck) {
+                    } else if (from >= 0 && to >= 0 && from != to) {
+                        // Zwischen Wisch-Seiten: seitlich gleiten, in Wischrichtung.
+                        val dir = if (to > from) 1 else -1
+                        (slideInHorizontally(tween(220)) { dir * it / 4 } + fadeIn(tween(180))) togetherWith
+                            (slideOutHorizontally(tween(200)) { -dir * it / 4 } + fadeOut(tween(140)))
+                    } else if (targetState.screen != Screen.Deck) {
                         (slideInVertically(tween(220)) { it / 6 } + fadeIn(tween(160))) togetherWith fadeOut(tween(120))
                     } else {
                         fadeIn(tween(160)) togetherWith (slideOutVertically(tween(200)) { it / 6 } + fadeOut(tween(140)))
@@ -297,7 +362,7 @@ fun LauncherApp(vm: LauncherViewModel) {
                 },
                 label = "screen",
             ) { target ->
-                when (target) {
+                when (target.screen) {
                     Screen.Deck -> DeckScreen(
                         DeckState(
                             system = sys,
@@ -323,9 +388,39 @@ fun LauncherApp(vm: LauncherViewModel) {
                             likelyReasons = likelyReasons,
                             notes = notes,
                             undo = undo,
+                            pageIndex = pages.indexOf(PageRef.Deck).coerceAtLeast(0),
+                            pageCount = pages.size,
                         ),
                         deckActions,
                     )
+                    Screen.Board -> {
+                        val b = boards.firstOrNull { it.id == target.board }
+                        if (b != null) {
+                            val byKey = remember(apps) { apps.associateBy { it.key } }
+                            val today = remember(sys.nowMillis) { java.time.LocalDate.now() }
+                            val mai = BoardTemplates.maiPackage(b.kind)
+                            CompositionLocalProvider(LocalAccent provides b.accent.toAccent()) {
+                                BoardScreen(
+                                    BoardState(
+                                        id = b.id,
+                                        title = b.title,
+                                        kind = b.kind,
+                                        apps = b.apps.mapNotNull { byKey[it]?.toTile() },
+                                        widgets = remember(b.widgets, pendingRemoval) { slotsOf(b.widgets) },
+                                        forecast = if (mai == null) emptyList() else forecast.filter { it.packageName == mai },
+                                        forecastApps = forecastApps,
+                                        daysLeftInWeek = Forecast.daysLeftInWeek(today),
+                                        badges = badges,
+                                        editMode = editMode,
+                                        pageIndex = pages.indexOf(PageRef.OfBoard(b.id)).coerceAtLeast(0),
+                                        pageCount = pages.size,
+                                        undo = undo,
+                                    ),
+                                    remember(vm, b.id) { boardActionsFor(b.id) },
+                                )
+                            }
+                        }
+                    }
                     Screen.Index -> IndexScreen(
                         IndexState(
                             apps = indexApps,
@@ -333,9 +428,10 @@ fun LauncherApp(vm: LauncherViewModel) {
                             query = query,
                             likely = likely,
                             likelyWindow = vm.likelyWindow,
-                            pickingDock = picking != null,
-                            commands = if (picking != null) emptyList() else commands,
-                            contacts = if (picking != null) emptyList() else contactHits,
+                            pickingDock = picking != null || boardPick != null,
+                            pickingBoard = boardPick != null,
+                            commands = if (picking != null || boardPick != null) emptyList() else commands,
+                            contacts = if (picking != null || boardPick != null) emptyList() else contactHits,
                             listening = listening,
                             tab = indexTab,
                             tabs = indexTabs,
@@ -365,6 +461,24 @@ fun LauncherApp(vm: LauncherViewModel) {
                             version = vm.version,
                             backup = backupStatus,
                             appearance = appearance,
+                            pages = remember(pages, boards) {
+                                pages.map { p ->
+                                    val b = (p as? PageRef.OfBoard)?.let { r -> boards.firstOrNull { it.id == r.id } }
+                                    PageEntry(
+                                        page = p,
+                                        title = b?.title,
+                                        kind = b?.kind,
+                                        accent = when (p) {
+                                            PageRef.Comms -> areas.comms
+                                            PageRef.Media -> areas.media
+                                            PageRef.Deck -> areas.deck
+                                            is PageRef.OfBoard -> b?.accent
+                                        },
+                                        appCount = b?.apps?.size ?: 0,
+                                    )
+                                }
+                            },
+                            canAddBoard = boards.size < Boards.MAX_BOARDS,
                         ),
                         settingsActions,
                     )

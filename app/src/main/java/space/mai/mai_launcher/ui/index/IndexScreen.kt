@@ -101,6 +101,8 @@ data class IndexState(
     val likely: List<AppTile>,
     val likelyWindow: Pair<Int, Int>,
     val pickingDock: Boolean = false,
+    /** Auswahl für ein Dashboard statt fürs Dock (nur andere Überschrift). */
+    val pickingBoard: Boolean = false,
     /** Befehle zur Eingabe (Rechner, Timer, …); Websuche immer zuletzt. */
     val commands: List<Command> = emptyList(),
     val contacts: List<Contact> = emptyList(),
@@ -187,7 +189,8 @@ fun IndexScreen(
     ) {
         MainFrame(
             title = stringResource(R.string.tab_index),
-            meta = if (state.pickingDock) stringResource(R.string.pick_dock_hint)
+            meta = if (state.pickingBoard) stringResource(R.string.pick_board_hint)
+            else if (state.pickingDock) stringResource(R.string.pick_dock_hint)
             else pluralStringResource(R.plurals.apps_count, state.apps.size, state.apps.size),
             modifier = Modifier.weight(1f).fillMaxHeight(),
         ) {

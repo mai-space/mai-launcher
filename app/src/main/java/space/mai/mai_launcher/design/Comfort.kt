@@ -41,6 +41,19 @@ object ComfortState {
 
     /** Zuletzt abgespielter Zählerstand (kein Snapshot-Zustand, nur Merker). */
     var powerOnPlayed = 0
+
+    /**
+     * Vorgemerkt: der Startbildschirm war verdeckt und blendet beim nächsten
+     * Anzeigen ein. Solange gesetzt, zeichnet das Deck nichts (Deckkraft 0) –
+     * so blitzt beim Zurückkehren nicht kurz das alte Bild auf, bevor die
+     * Einschalt-Animation von vorn beginnt.
+     */
+    var powerOnArmed by mutableStateOf(false)
+
+    /** Beim Verlassen des Startbildschirms aufrufen (nicht bei „weniger Bewegung“). */
+    fun armPowerOn() {
+        if (!current.reduceMotion) powerOnArmed = true
+    }
 }
 
 /** Animation, die „weniger Bewegung“ beachtet: dann sofort. */
@@ -59,7 +72,10 @@ fun AccentChoice.toAccent(): Accent = when (this) {
 /** Farbmuster für die Auswahl in den Einstellungen. */
 val AccentChoice.swatch: Color get() = toAccent().main
 
-/** Gesamtdauer der Einschalt-Animation: Rahmen 180 ms, Panels je 40 ms versetzt. */
+/**
+ * Gesamtdauer der Einschalt-Animation: Rahmen 180 ms, Uhr, Panels und
+ * Daumenzone blenden je 40 ms versetzt ein (höchstens 4 Stufen + 80 ms).
+ */
 const val POWER_ON_MS = 240
 private const val FRAME_DRAW_MS = 180f
 private const val PANEL_STEP_MS = 40
@@ -82,12 +98,14 @@ fun rememberPowerOn(): () -> Float {
         ComfortState.powerOnPlayed = count
         if (play) {
             progress.snapTo(0f)
+            ComfortState.powerOnArmed = false
             progress.animateTo(1f, tween(POWER_ON_MS, easing = LinearEasing))
         } else {
+            ComfortState.powerOnArmed = false
             progress.snapTo(1f)
         }
     }
-    return remember(progress) { { progress.value } }
+    return remember(progress) { { if (ComfortState.powerOnArmed) 0f else progress.value } }
 }
 
 /** Anteil der gezeichneten Rahmenkontur zum Fortschritt [p]. */
@@ -98,6 +116,13 @@ fun powerOnPanel(p: Float, order: Int): Float {
     if (p >= 1f) return 1f
     val ms = p * POWER_ON_MS - PANEL_STEP_MS * order.coerceIn(0, 4)
     return (ms / PANEL_FADE_MS).coerceIn(0f, 1f)
+}
+
+/** Deckkraft-Modifier der Einschalt-Animation (für Teile, die kein eigenes Panel sind). */
+@Composable
+fun Modifier.powerOnFade(order: Int): Modifier {
+    val progress = LocalPowerOn.current
+    return this.graphicsLayer { alpha = powerOnPanel(progress(), order) }
 }
 
 /** Blendet ein Panel bei der Einschalt-Animation versetzt ein. */

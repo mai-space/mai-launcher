@@ -45,8 +45,14 @@ Systemsprache. Paket `space.mai.mai_launcher`, CI-Artefakt `mai-launcher.apk`.
   `mai_launcher_log_key` und Dateiname `launch_log.bin` nie ändern; neue
   Formate nur mit neuer Versionsnummer und Lesbarkeit der alten.
 - **Einstellungen** (`LauncherPrefs`, Schlüssel `dock_0..3`, `dest_home`, `dest_work`, `setup_dismissed`,
-  `widgets`, `feeds`, `mai_widgets_seen`, `comms_log`, `signals_show_text`, `feedback_haptics`, `feedback_sounds`, `mai_forecast`, `accent`, `comfort_contrast`, `comfort_motion`, `comfort_large`, `hidden_apps`, `likely_hidden`, `aliases`) tolerant lesen,
+  `widgets`, `feeds`, `mai_widgets_seen`, `comms_log`, `signals_show_text`, `feedback_haptics`, `feedback_sounds`, `mai_forecast`, `accent`, `comfort_contrast`, `comfort_motion`, `comfort_large`, `hidden_apps`, `likely_hidden`, `aliases`, `boards`, `page_order`) tolerant lesen,
   Schlüssel nie umbenennen.
+- **Dashboards** (`domain/Boards.kt`): `BoardCodec` Kopf `boards v1` nur
+  erweitern; `BoardKind` wird als Name gespeichert (nie umbenennen), Board-IDs
+  nie ändern (Seitenreihenfolge `page_order` hängt daran, z. B.
+  `comms,deck,media,board:b7k2q`). Standardreihenfolge Comms, Deck, Media muss
+  die alten Gesten behalten. Widget-IDs nur auf dem Gerät, in der
+  Layout-Sicherung als Anbieter.
 
 - **Layout-Sicherung** (`LayoutBackupCodec`, Kopf `mai-launcher-layout v1`,
   Datei über das Speicherzugriffs-Framework): nur erweitern, unbekannte

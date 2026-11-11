@@ -47,6 +47,8 @@ import space.mai.mai_launcher.design.CommandShape
 import space.mai.mai_launcher.design.ComfortState
 import space.mai.mai_launcher.design.LocalPowerOn
 import space.mai.mai_launcher.design.PowerOnFade
+import space.mai.mai_launcher.design.powerOnFade
+import space.mai.mai_launcher.domain.PageOrder
 import space.mai.mai_launcher.design.rememberPowerOn
 import space.mai.mai_launcher.design.rememberTicking
 import androidx.compose.runtime.CompositionLocalProvider
@@ -67,6 +69,7 @@ import space.mai.mai_launcher.system.SystemState
 import space.mai.mai_launcher.ui.AppTile
 import space.mai.mai_launcher.ui.AppToken
 import space.mai.mai_launcher.ui.LikelyTokens
+import space.mai.mai_launcher.ui.PageTicks
 import space.mai.mai_launcher.ui.UndoKind
 import space.mai.mai_launcher.domain.Note
 import space.mai.mai_launcher.domain.AppKey
@@ -118,7 +121,13 @@ data class DeckState(
     val notes: List<Note> = emptyList(),
     /** Gerade rückgängig machbar (null = keine Leiste). */
     val undo: UndoKind? = null,
+    /** Stelle des Decks unter den Wisch-Seiten (Seitenstriche nur mit eigenen Dashboards). */
+    val pageIndex: Int = 1,
+    val pageCount: Int = PageOrder.DEFAULT.size,
 )
+
+/** Daumenzone blendet als letzte Stufe ein. */
+private const val GRIP_ORDER = 4
 
 /** Aktionen des Decks. */
 class DeckActions(
@@ -154,6 +163,8 @@ class DeckActions(
     val onHideLikely: (AppKey) -> Unit = {},
     val onNoteDone: (Note) -> Unit = {},
     val onUndo: () -> Unit = {},
+    /** Dashboards verwalten (Einstellungen). */
+    val onBoards: () -> Unit = {},
 )
 
 class MediaActions(
@@ -179,7 +190,7 @@ fun DeckScreen(state: DeckState, actions: DeckActions, modifier: Modifier = Modi
             .padding(start = 14.dp, top = 6.dp, bottom = 8.dp)
             // Kein Wischen hoch/runter: das gehört dem Scrollen (Panels, Widgets).
             // Suche über die Befehlszeile, Benachrichtigungen über die Seitenleiste.
-            // Nach rechts wischen = Comms, nach links = Media.
+            // Wischen blättert durch die Seiten (Standard: rechts = Comms, links = Media, dann eigene Dashboards).
             .pointerInput(Unit) {
                 var total = 0f
                 detectHorizontalDragGestures(
@@ -200,7 +211,8 @@ fun DeckScreen(state: DeckState, actions: DeckActions, modifier: Modifier = Modi
             else pluralStringResource(R.plurals.apps_count, state.appCount, state.appCount),
             modifier = Modifier.weight(1f).fillMaxHeight(),
         ) {
-            ClockBlock(state, actions.onClock, onLongClock = { actions.onEditMode(true) })
+            // Einschalt-Animation: Uhr zuerst, dann die Panels je 40 ms versetzt, die Daumenzone zuletzt.
+            Box(Modifier.powerOnFade(0)) { ClockBlock(state, actions.onClock, onLongClock = { actions.onEditMode(true) }) }
             Spacer(Modifier.height(14.dp))
             Column(
                 Modifier
@@ -209,8 +221,7 @@ fun DeckScreen(state: DeckState, actions: DeckActions, modifier: Modifier = Modi
                     .verticalScroll(scroll),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                // Einschalt-Animation: Panels blenden je 40 ms versetzt ein.
-                var order = 0
+                var order = 1
                 if (state.editMode) EditBar(actions)
                 if (state.setup.isNotEmpty()) PowerOnFade(order++) { SetupPanel(state.setup, actions.onSetup, actions.onDismissSetup) }
                 state.navigation?.let { PowerOnFade(order++) { NavigationPanel(it, actions.onNavigation) } }
@@ -262,14 +273,21 @@ fun DeckScreen(state: DeckState, actions: DeckActions, modifier: Modifier = Modi
                 Spacer(Modifier.height(4.dp))
             }
             state.undo?.let { UndoBar(it, actions.onUndo) }
-            Spacer(Modifier.height(8.dp))
-            GripLine()
-            Spacer(Modifier.height(10.dp))
-            Dock(state.dock, state.badges, if (large) 48.dp else 40.dp, actions.onApp, actions.onDockLongPress)
-            Spacer(Modifier.height(10.dp))
-            CommandBar(actions.onCommand, actions.onMic)
+            Column(Modifier.fillMaxWidth().powerOnFade(GRIP_ORDER)) {
+                if (state.pageCount > PageOrder.DEFAULT.size) {
+                    Spacer(Modifier.height(6.dp))
+                    PageTicks(state.pageIndex, state.pageCount, Modifier.fillMaxWidth())
+                }
+                Spacer(Modifier.height(8.dp))
+                GripLine()
+                Spacer(Modifier.height(10.dp))
+                Dock(state.dock, state.badges, if (large) 48.dp else 40.dp, actions.onApp, actions.onDockLongPress)
+                Spacer(Modifier.height(10.dp))
+                CommandBar(actions.onCommand, actions.onMic)
+            }
         }
-        SideRail(state.system, actions.rail, Modifier.width(MaiDims.RailWidth).fillMaxHeight(), notifications = state.badges.values.sum())
+        SideRail(state.system, actions.rail, Modifier.width(MaiDims.RailWidth).fillMaxHeight().powerOnFade(1),
+            notifications = state.badges.values.sum())
     }
     }
 }
@@ -278,6 +296,7 @@ fun DeckScreen(state: DeckState, actions: DeckActions, modifier: Modifier = Modi
 private fun EditBar(actions: DeckActions) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         EditChip("+ " + stringResource(R.string.widget_add), actions.onAddWidget)
+        EditChip(stringResource(R.string.boards_title), actions.onBoards)
         Spacer(Modifier.weight(1f))
         EditChip(stringResource(R.string.edit_done), { actions.onEditMode(false) })
     }
@@ -393,7 +412,7 @@ private fun Dock(dock: List<AppTile?>, badges: Map<String, Int>, size: Dp, onApp
 }
 
 @Composable
-private fun CommandBar(onClick: () -> Unit, onMic: () -> Unit) {
+internal fun CommandBar(onClick: () -> Unit, onMic: () -> Unit) {
     CommandShape(Modifier.clickable(role = Role.Button, onClick = onClick)) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
             MaiText("›", MaiType.Mono.copy(fontSize = MaiType.Title.fontSize), color = LocalAccent.current.main)

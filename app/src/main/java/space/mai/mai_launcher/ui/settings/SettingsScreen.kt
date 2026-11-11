@@ -49,6 +49,17 @@ import space.mai.mai_launcher.design.MainFrame
 import space.mai.mai_launcher.ui.AppTile
 import space.mai.mai_launcher.ui.AppToken
 import space.mai.mai_launcher.ui.deck.EditChip
+import space.mai.mai_launcher.ui.boards.boardKindName
+import space.mai.mai_launcher.domain.BoardKind
+import space.mai.mai_launcher.domain.BoardTemplates
+import space.mai.mai_launcher.domain.PageRef
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.pluralStringResource
 
 /** Ein Dock-Platz: belegte App und ob sie selbst gewählt (nicht System-Standard) ist. */
 @Immutable
@@ -59,7 +70,7 @@ data class DockSlot(val tile: AppTile?, val custom: Boolean)
 sealed interface BackupStatus {
     data object Exported : BackupStatus
     data object Failed : BackupStatus
-    data class Imported(val dock: Int, val feeds: Int, val widgets: Int) : BackupStatus
+    data class Imported(val dock: Int, val feeds: Int, val widgets: Int, val boards: Int = 0) : BackupStatus
 }
 
 /** Alles, was die Launcher-Einstellungen zeigen (reine Daten). */
@@ -80,6 +91,19 @@ data class SettingsState(
     val version: String = "",
     val backup: BackupStatus? = null,
     val appearance: Appearance = Appearance(),
+    /** Wisch-Seiten in ihrer Reihenfolge (Comms, Deck, Media und eigene Dashboards). */
+    val pages: List<PageEntry> = emptyList(),
+    val canAddBoard: Boolean = true,
+)
+
+/** Eine Seite in der Liste: eingebaut (kind = null) oder eigenes Dashboard. */
+@Immutable
+data class PageEntry(
+    val page: PageRef,
+    val title: String? = null,
+    val kind: BoardKind? = null,
+    val accent: AccentChoice? = null,
+    val appCount: Int = 0,
 )
 
 class SettingsActions(
@@ -105,6 +129,9 @@ class SettingsActions(
     val onContrast: () -> Unit = {},
     val onReduceMotion: () -> Unit = {},
     val onLarge: () -> Unit = {},
+    val onMovePage: (PageRef, Int) -> Unit = { _, _ -> },
+    val onOpenPage: (PageRef) -> Unit = {},
+    val onNewBoard: (BoardKind) -> Unit = {},
 )
 
 /** Launcher-Einstellungen: Dock, Deck, Freigaben, System. Über die Seitenleiste erreichbar. */
@@ -137,6 +164,7 @@ fun SettingsScreen(state: SettingsState, actions: SettingsActions, modifier: Mod
             ) {
                 DockPanel(state.dock, actions)
                 AppearancePanel(state.appearance, actions)
+                if (state.pages.isNotEmpty()) BoardsPanel(state, actions)
                 MaiPanel(stringResource(R.string.settings_deck), Modifier.fillMaxWidth()) {
                     SettingRow(stringResource(R.string.settings_arrange), stringResource(R.string.settings_arrange_body),
                         stringResource(R.string.settings_open), actions.onArrangeDeck)
@@ -174,7 +202,11 @@ fun SettingsScreen(state: SettingsState, actions: SettingsActions, modifier: Mod
                         val (text, color) = when (b) {
                             BackupStatus.Exported -> stringResource(R.string.settings_backup_exported) to LocalAccent.current.main
                             BackupStatus.Failed -> stringResource(R.string.settings_backup_failed) to MaiColors.Amber
-                            is BackupStatus.Imported -> stringResource(R.string.settings_backup_imported, b.dock, b.feeds, b.widgets) to LocalAccent.current.main
+                            is BackupStatus.Imported -> {
+                                val base = stringResource(R.string.settings_backup_imported, b.dock, b.feeds, b.widgets)
+                                val boards = if (b.boards > 0) " " + stringResource(R.string.settings_backup_boards, b.boards) else ""
+                                (base + boards) to LocalAccent.current.main
+                            }
                         }
                         Spacer(Modifier.height(4.dp))
                         MaiText(text, MaiType.Body, color = color, maxLines = 3)
@@ -269,6 +301,75 @@ private fun AppearancePanel(a: Appearance, actions: SettingsActions) {
             onOff(a.reduceMotion), actions.onReduceMotion)
         SettingRow(stringResource(R.string.settings_large), stringResource(R.string.settings_large_body),
             onOff(a.large), actions.onLarge)
+    }
+}
+
+/**
+ * Dashboards: alle Wisch-Seiten in Reihenfolge mit ◂/▸ zum Verschieben,
+ * darunter Vorlagen für ein neues Dashboard.
+ */
+@Composable
+private fun BoardsPanel(state: SettingsState, actions: SettingsActions) {
+    var choosing by remember { mutableStateOf(false) }
+    MaiPanel(
+        title = stringResource(R.string.boards_title),
+        meta = stringResource(R.string.boards_meta, state.pages.size),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Spacer(Modifier.height(4.dp))
+        MaiText(stringResource(R.string.boards_body), MaiType.Body, color = MaiColors.Text3, maxLines = 3)
+        state.pages.forEachIndexed { i, p ->
+            val name = when (p.page) {
+                PageRef.Comms -> stringResource(R.string.tab_comms)
+                PageRef.Deck -> stringResource(R.string.tab_deck)
+                PageRef.Media -> stringResource(R.string.tab_media)
+                is PageRef.OfBoard -> (p.title ?: boardKindName(p.kind ?: BoardKind.Custom)).uppercase()
+            }
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = MaiDims.ListRow),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                val color = p.accent?.swatch ?: MaiColors.Text3
+                Box(Modifier.size(3.dp, 16.dp).background(color))
+                Spacer(Modifier.width(10.dp))
+                Column(
+                    Modifier.weight(1f).clickable(role = Role.Button) { actions.onOpenPage(p.page) }.padding(vertical = 6.dp),
+                ) {
+                    MaiLabel(name, color = MaiColors.Text)
+                    if (p.page is PageRef.OfBoard) {
+                        MaiText(pluralStringResource(R.plurals.apps_count, p.appCount, p.appCount), MaiType.Body, color = MaiColors.Text3)
+                    } else if (p.page == PageRef.Deck) {
+                        MaiText(stringResource(R.string.boards_home), MaiType.Body, color = MaiColors.Text3)
+                    }
+                }
+                HexToken(
+                    contentDescription = stringResource(R.string.board_move_page_left, name),
+                    size = 28.dp, text = "◂", color = if (i > 0) LocalAccent.current.main else MaiColors.Text3, filled = false,
+                    onClick = if (i > 0) ({ actions.onMovePage(p.page, -1) }) else null,
+                )
+                HexToken(
+                    contentDescription = stringResource(R.string.board_move_page_right, name),
+                    size = 28.dp, text = "▸", color = if (i < state.pages.lastIndex) LocalAccent.current.main else MaiColors.Text3,
+                    filled = false,
+                    onClick = if (i < state.pages.lastIndex) ({ actions.onMovePage(p.page, 1) }) else null,
+                )
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        if (!state.canAddBoard) {
+            MaiText(stringResource(R.string.boards_full), MaiType.Body, color = MaiColors.Amber, maxLines = 2)
+        } else if (!choosing) {
+            EditChip("+ " + stringResource(R.string.boards_new), { choosing = true })
+        } else {
+            MaiLabel(stringResource(R.string.boards_template), color = MaiColors.Text2)
+            Spacer(Modifier.height(6.dp))
+            BoardKind.templates.chunked(3).forEach { row ->
+                Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    row.forEach { k -> EditChip(boardKindName(k), { choosing = false; actions.onNewBoard(k) }, BoardTemplates.accent(k).swatch) }
+                }
+            }
+            MaiText(stringResource(R.string.boards_template_body), MaiType.Body, color = MaiColors.Text3, maxLines = 3)
+        }
     }
 }
 

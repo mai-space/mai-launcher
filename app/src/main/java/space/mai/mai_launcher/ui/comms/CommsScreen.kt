@@ -85,6 +85,8 @@ class CommsActions(
     val onClearDial: () -> Unit = {},
     val onDial: () -> Unit = {},
     val onClose: () -> Unit = {},
+    /** Wischen: −1 = Seite links davon, +1 = rechts davon (Standard: rechts = Deck). */
+    val onSwipe: (Int) -> Unit = { if (it > 0) onClose() },
 )
 
 /** Comms: Favoriten, Häufige, alle Kontakte, Wähltastatur. Kontextfarbe Signalgrün. */
@@ -99,12 +101,17 @@ fun CommsScreen(state: CommsState, actions: CommsActions, modifier: Modifier = M
                 .navigationBarsPadding()
                 .imePadding()
                 .padding(start = 14.dp, top = 6.dp, bottom = 8.dp)
-                // Nach links wischen = zurück zum Deck.
+                // Wischen blättert zur Nachbarseite (Standard: nach links = zurück zum Deck).
                 .pointerInput(Unit) {
                     var total = 0f
                     detectHorizontalDragGestures(
                         onDragStart = { total = 0f },
-                        onDragEnd = { if (total < -threshold) actions.onClose() },
+                        onDragEnd = {
+                            when {
+                                total < -threshold -> actions.onSwipe(1)
+                                total > threshold -> actions.onSwipe(-1)
+                            }
+                        },
                     ) { _, dx -> total += dx }
                 },
         ) {
